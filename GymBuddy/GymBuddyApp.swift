@@ -9,9 +9,19 @@ import SwiftUI
 
 @main
 struct GymBuddyApp: App {
+    let persistenceController = PersistenceController.shared
+    @StateObject private var viewModel: RoutineViewModel
+    
+    init() {
+        let context = PersistenceController.shared.container.viewContext
+        _viewModel = StateObject(wrappedValue: RoutineViewModel(context: context))
+    }
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(context: persistenceController.container.viewContext)
+                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                .environmentObject(viewModel)
         }
     }
 }
