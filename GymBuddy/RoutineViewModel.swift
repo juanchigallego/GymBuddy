@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import ActivityKit
 
 class RoutineViewModel: ObservableObject {
     @Published var routines: [Routine] = []
@@ -25,12 +26,21 @@ class RoutineViewModel: ObservableObject {
     @Published var blockToEdit: Block?
     @Published var currentBlockIndex = 0
     @Published var isMinimized = false
+    @Published var currentActivity: Activity<WorkoutActivityAttributes>?
     
     private let viewContext: NSManagedObjectContext
     
     init(context: NSManagedObjectContext) {
         self.viewContext = context
         fetchRoutines()
+    }
+    
+    var currentBlock: Block? {
+        guard let currentRoutine = currentRoutine,
+              currentBlockIndex < currentRoutine.blockArray.count else {
+            return nil
+        }
+        return currentRoutine.blockArray[currentBlockIndex]
     }
     
     func fetchRoutines() {
@@ -129,6 +139,37 @@ class RoutineViewModel: ObservableObject {
             showingWorkoutSheet = true
         }
         isMinimized = false
+        
+        // Start Live Activity
+        startLiveActivity(routine: routine)
+    }
+    
+    private func startLiveActivity(routine: Routine) {
+        let attributes = WorkoutActivityAttributes(
+            routineName: routine.routineDay,
+            totalBlocks: routine.blockArray.count
+        )
+        
+        let contentState = WorkoutActivityAttributes.ContentState(
+            routineName: routine.routineDay,
+            currentBlock: routine.blockArray[0].blockName,
+            blockProgress: 1,
+            totalBlocks: routine.blockArray.count,
+            exerciseProgress: 0,
+            totalExercises: routine.blockArray[0].exerciseArray.count,
+            startTime: Date()
+        )
+        
+        do {
+            let activity = try Activity.request(
+                attributes: attributes,
+                contentState: contentState,
+                pushType: nil
+            )
+            currentActivity = activity
+        } catch {
+            print("Error starting live activity: \(error)")
+        }
     }
     
     func minimizeWorkout() {
@@ -223,5 +264,72 @@ class RoutineViewModel: ObservableObject {
     
     func updateCurrentBlock(index: Int) {
         currentBlockIndex = index
+    }
+    
+    func updateLiveActivity() {
+        guard let currentRoutine = currentRoutine,
+              let currentBlock = currentBlock,
+              let activity = currentActivity else { return }
+        
+        let contentState = WorkoutActivityAttributes.ContentState(
+            routineName: currentRoutine.routineDay,
+            currentBlock: currentBlock.blockName,
+            blockProgress: currentBlockIndex + 1,
+            totalBlocks: currentRoutine.blockArray.count,
+            exerciseProgress: currentBlock.exerciseArray.filter { $0.completedSets >= $0.sets }.count,
+            totalExercises: currentBlock.exerciseArray.count,
+            startTime: Date()
+        )
+        
+        Task {
+            await activity.update(using: contentState)
+        }
+    }
+    
+    func endLiveActivity() {
+        Task {
+            await currentActivity?.end(using: currentActivity?.contentState, dismissalPolicy: .immediate)
+        }
+    }
+    
+    func testLiveActivity() {
+        if #available(iOS 16.1, *) {
+            let attributes = WorkoutActivityAttributes(
+                routineName: "Test Workout",
+                totalBlocks: 3
+            )
+            
+            let initialState = WorkoutActivityAttributes.ContentState(
+                routineName: "Test Workout",
+                currentBlock: "Block 1",
+                blockProgress: 1,
+                totalBlocks: 3,
+                exerciseProgress: 0,
+                totalExercises: 4,
+                startTime: Date()
+            )
+            
+            Task {
+                let activity = try? await Activity.request(
+                    attributes: attributes,
+                    contentState: initialState
+                )
+                
+                // Simulate progress after 3 seconds
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                
+                let updatedState = WorkoutActivityAttributes.ContentState(
+                    routineName: "Test Workout",
+                    currentBlock: "Block 2",
+                    blockProgress: 2,
+                    totalBlocks: 3,
+                    exerciseProgress: 2,
+                    totalExercises: 4,
+                    startTime: Date()
+                )
+                
+                await activity?.update(using: updatedState)
+            }
+        }
     }
 } 

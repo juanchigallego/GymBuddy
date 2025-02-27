@@ -96,6 +96,7 @@ struct WorkoutTrackingView: View {
                                 ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
                                     ExerciseTrackingRow(
                                         exercise: exercise,
+                                        viewModel: viewModel,
                                         isComplete: { completedSets in
                                             completedSets >= exercise.sets
                                         },
@@ -222,6 +223,7 @@ struct WorkoutTrackingView: View {
         
         if allExercisesComplete {
             completedBlocks.insert(block.blockID)
+            viewModel.updateLiveActivity()  // Update when block is completed
         }
     }
     
@@ -234,6 +236,7 @@ struct WorkoutTrackingView: View {
 
 struct ExerciseTrackingRow: View {
     @ObservedObject var exercise: Exercise
+    let viewModel: RoutineViewModel
     let isComplete: (Int16) -> Bool
     let onComplete: () -> Void
     
@@ -280,16 +283,12 @@ struct ExerciseTrackingRow: View {
     
     private func completeSet() {
         guard exercise.completedSets < exercise.sets else { return }
-        
-        // Increment completed sets
         exercise.completedSets += 1
-        
-        // Save the change
         try? exercise.managedObjectContext?.save()
         
-        // Check if exercise is complete
         if isComplete(exercise.completedSets) {
             onComplete()
+            viewModel.updateLiveActivity()
         }
     }
 }

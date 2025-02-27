@@ -32,8 +32,14 @@ struct ContentView: View {
                 }
                 .navigationTitle("My Routines")
                 .toolbar {
-                    Button(action: { viewModel.isAddingRoutine = true }) {
-                        Image(systemName: "plus")
+                    ToolbarItemGroup(placement: .navigationBarTrailing) {
+                        Button(action: { viewModel.isAddingRoutine = true }) {
+                            Image(systemName: "plus")
+                        }
+                        
+                        Button("Test Live Activity") {
+                            viewModel.testLiveActivity()
+                        }
                     }
                 }
                 .sheet(isPresented: $viewModel.isAddingRoutine) {

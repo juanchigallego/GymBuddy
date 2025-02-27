@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ActivityKit
 
 @main
 struct GymBuddyApp: App {
@@ -15,6 +16,13 @@ struct GymBuddyApp: App {
     init() {
         let context = PersistenceController.shared.container.viewContext
         _viewModel = StateObject(wrappedValue: RoutineViewModel(context: context))
+        
+        if #available(iOS 16.1, *) {
+            Task {
+                let granted = await ActivityAuthorizationInfo().areActivitiesEnabled
+                print("Live Activities authorized: \(granted)")
+            }
+        }
     }
     
     var body: some Scene {
