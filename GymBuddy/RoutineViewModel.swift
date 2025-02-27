@@ -173,16 +173,22 @@ class RoutineViewModel: ObservableObject {
     }
     
     func minimizeWorkout() {
-        withAnimation(.spring()) {
-            isMinimized = true
-            showingWorkoutSheet = false
+        // First set isMinimized to true, then after a short delay hide the full sheet
+        isMinimized = true
+        
+        // Small delay to allow the animation to complete
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.showingWorkoutSheet = false
         }
     }
     
     func resumeWorkout() {
-        withAnimation(.spring()) {
-            isMinimized = false
-            showingWorkoutSheet = true
+        // First show the full sheet, then after it's visible, set isMinimized to false
+        showingWorkoutSheet = true
+        
+        // Small delay to allow the animation to complete
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.isMinimized = false
         }
     }
     
@@ -208,18 +214,22 @@ class RoutineViewModel: ObservableObject {
             routine.targetMuscleGroups = muscleGroups as NSArray
             routine.notes = notes
             
-            // Remove old blocks
-            if let existingBlocks = routine.blocks {
-                for case let block as Block in existingBlocks {
-                    self.viewContext.delete(block)
+            // Create a set of block IDs that should be kept
+            let blockIdsToKeep = Set(blocks.compactMap { $0.id })
+            
+            // Remove blocks that are no longer in the updated list
+            if let existingBlocks = routine.blocks as? Set<Block> {
+                for block in existingBlocks {
+                    if !blockIdsToKeep.contains(block.id ?? UUID()) {
+                        self.viewContext.delete(block)
+                    }
                 }
             }
             
-            // Add new blocks
-            let blockSet = NSSet(array: blocks)
-            routine.blocks = blockSet
+            // Update the blocks relationship
+            routine.blocks = NSSet(array: blocks)
             
-            // Update inverse relationships
+            // Update the inverse relationships
             for block in blocks {
                 block.routine = routine
             }

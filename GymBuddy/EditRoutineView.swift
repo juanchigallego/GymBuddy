@@ -5,6 +5,7 @@ struct EditRoutineView: View {
     @ObservedObject var viewModel: RoutineViewModel
     let routine: Routine
     @Environment(\.dismiss) var dismiss
+    @State private var editMode = EditMode.active // Start in edit mode
     
     @State private var day: String
     @State private var muscleGroups: String
@@ -32,19 +33,24 @@ struct EditRoutineView: View {
                     TextField("Notes (optional)", text: $notes)
                 }
                 
-                Section("Blocks") {
-                    ForEach(blocks, id: \.blockID) { block in
-                        VStack(alignment: .leading) {
-                            Text(block.blockName)
-                                .font(.headline)
-                            ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
-                                Text("• \(exercise.exerciseName): \(exercise.sets)×\(exercise.repsPerSet) @ \(exercise.weight)kg")
-                                    .font(.subheadline)
+                Section(header: Text("Blocks")) {
+                    List {
+                        ForEach(blocks, id: \.blockID) { block in
+                            VStack(alignment: .leading) {
+                                Text(block.blockName)
+                                    .font(.headline)
+                                ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
+                                    Text("• \(exercise.exerciseName): \(exercise.sets)×\(exercise.repsPerSet) @ \(exercise.weight)kg")
+                                        .font(.subheadline)
+                                }
                             }
                         }
-                    }
-                    .onDelete { indexSet in
-                        blocks.remove(atOffsets: indexSet)
+                        .onDelete { indexSet in
+                            blocks.remove(atOffsets: indexSet)
+                        }
+                        .onMove { from, to in
+                            blocks.move(fromOffsets: from, toOffset: to)
+                        }
                     }
                     
                     Button("Add Block") {
@@ -53,12 +59,14 @@ struct EditRoutineView: View {
                 }
             }
             .navigationTitle("Edit Routine")
+            .environment(\.editMode, $editMode) // Set edit mode for the view
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
+                
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         saveRoutine()

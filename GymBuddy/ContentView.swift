@@ -17,6 +17,7 @@ struct ContentView: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
+            // Main content
             NavigationStack {
                 List {
                     ForEach(viewModel.routines, id: \.routineID) { routine in
@@ -32,11 +33,13 @@ struct ContentView: View {
                 }
                 .navigationTitle("My Routines")
                 .toolbar {
-                    ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: { viewModel.isAddingRoutine = true }) {
                             Image(systemName: "plus")
                         }
-                        
+                    }
+                    
+                    ToolbarItem(placement: .navigationBarTrailing) {
                         Button("Test Live Activity") {
                             viewModel.testLiveActivity()
                         }
@@ -46,22 +49,37 @@ struct ContentView: View {
                     AddRoutineView(viewModel: viewModel)
                 }
             }
-            .allowsHitTesting(!viewModel.showingWorkoutSheet || viewModel.isMinimized)
+            .padding(.bottom, viewModel.isMinimized ? 64 : 0)
             
-            // Workout overlay
-            if viewModel.showingWorkoutSheet || viewModel.isMinimized, let currentRoutine = viewModel.currentRoutine {
-                if !viewModel.isMinimized {
-                    Color.black.opacity(0.3)
-                        .ignoresSafeArea()
-                        .transition(.opacity)
+            // Workout view container - this stays in place during transitions
+            if let currentRoutine = viewModel.currentRoutine {
+                ZStack {
+                    // Background overlay
+                    if viewModel.showingWorkoutSheet {
+                        Color.black.opacity(0.3)
+                            .ignoresSafeArea()
+                            .transition(.opacity)
+                            .zIndex(1)
+                    }
+                    
+                    // The view that transforms between full and mini
+                    Group {
+                        if viewModel.showingWorkoutSheet {
+                            // Full workout view
+                            WorkoutTrackingView(routine: currentRoutine, viewModel: viewModel)
+                                .transition(.identity)
+                        } else if viewModel.isMinimized {
+                            // Mini tracker
+                            MiniWorkoutTrackerView(routine: currentRoutine, viewModel: viewModel)
+                                .transition(.identity)
+                        }
+                    }
+                    .zIndex(2)
                 }
-                
-                WorkoutTrackingView(routine: currentRoutine, viewModel: viewModel)
-                    .transition(.move(edge: .bottom))
+                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.showingWorkoutSheet)
+                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isMinimized)
             }
         }
-        .animation(.spring(), value: viewModel.showingWorkoutSheet)
-        .animation(.spring(), value: viewModel.isMinimized)
     }
 }
 

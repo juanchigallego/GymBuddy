@@ -29,114 +29,85 @@ struct WorkoutTrackingView: View {
     
     var body: some View {
         if viewModel.isMinimized {
-            // Mini tracker
-            VStack(spacing: 0) {
-                Divider()
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(routine.routineDay)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        
-                        if let currentBlock = currentBlock {
-                            Text(currentBlock.blockName)
-                                .font(.headline)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    Button(action: { 
-                        withAnimation(.spring()) {
-                            viewModel.resumeWorkout()
-                            viewModel.showingWorkoutSheet = true
-                        }
-                    }) {
-                        HStack {
-                            Text("Resume")
-                            Image(systemName: "play.fill")
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                    }
-                }
-                .padding()
-            }
-            .frame(height: 80)
-            .frame(maxWidth: .infinity)
-            .background(Color(UIColor.systemBackground))
-            .shadow(radius: 5)
-            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 0) }
-            .transition(.move(edge: .bottom))
+            // Mini tracker is now handled in MiniWorkoutTrackerView
+            EmptyView()
         } else {
-            // Full workout view
             NavigationStack {
-                Group {
+                ZStack {
+                    // Background
+                    Color.black.ignoresSafeArea()
+                    
                     if let block = currentBlock {
                         VStack(spacing: 16) {
-                            // Progress indicator
-                            HStack {
-                                ForEach(blocks, id: \.blockID) { block in
-                                    Circle()
-                                        .fill(circleColor(for: block))
-                                        .frame(width: 12, height: 12)
+                            // Progress bar
+                            SegmentedProgressBar(
+                                totalSegments: blocks.count,
+                                currentSegment: viewModel.currentBlockIndex,
+                                completedSegments: completedBlocks.map { id in
+                                    blocks.firstIndex { $0.blockID == id } ?? -1
                                 }
+                            )
+                            .padding(.horizontal)
+                            .padding(.top)
+                            
+                            // Routine name and block
+                            VStack(spacing: 4) {
+                                Text(routine.routineDay)
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                
+                                Text(block.blockName)
+                                    .font(.title)
+                                    .bold()
                             }
-                            .padding()
+                            .foregroundColor(.white)
                             
-                            // Current block info
-                            Text(block.blockName)
-                                .font(.title)
-                                .bold()
+                            // Notes if any
+                            if let notes = routine.routineNotes, !notes.isEmpty {
+                                Text(notes)
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .padding(.horizontal)
+                            }
                             
-                            List {
-                                ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
-                                    ExerciseTrackingRow(
-                                        exercise: exercise,
-                                        viewModel: viewModel,
-                                        isComplete: { completedSets in
-                                            completedSets >= exercise.sets
-                                        },
-                                        onComplete: {
-                                            checkBlockCompletion(block)
-                                        }
-                                    )
+                            // Exercise list
+                            ScrollView {
+                                LazyVStack(spacing: 12) {
+                                    ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
+                                        ExerciseTrackingCard(
+                                            exercise: exercise,
+                                            viewModel: viewModel,
+                                            isComplete: { completedSets in
+                                                completedSets >= exercise.sets
+                                            },
+                                            onComplete: {
+                                                checkBlockCompletion(block)
+                                            }
+                                        )
+                                    }
                                 }
+                                .padding()
                             }
                             
+                            // Bottom buttons
                             if completedBlocks.contains(block.blockID) {
-                                HStack {
+                                HStack(spacing: 16) {
                                     Button(action: { showingBlockRestTimer = true }) {
                                         Label("Rest", systemImage: "timer")
                                             .frame(maxWidth: .infinity)
                                             .padding()
                                             .background(Color.blue.opacity(0.2))
+                                            .foregroundColor(.white)
                                             .cornerRadius(10)
                                     }
                                     
-                                    if isLastBlock {
-                                        Button(action: { 
-                                            viewModel.endWorkout()
-                                        }) {
-                                            Text("End Workout")
-                                                .frame(maxWidth: .infinity)
-                                                .padding()
-                                                .background(Color.green)
-                                                .foregroundColor(.white)
-                                                .cornerRadius(10)
-                                        }
-                                    } else {
-                                        Button(action: nextBlock) {
-                                            Text(blockRestComplete ? "Next Block" : "Skip Rest")
-                                                .frame(maxWidth: .infinity)
-                                                .padding()
-                                                .background(Color.blue)
-                                                .foregroundColor(.white)
-                                                .cornerRadius(10)
-                                        }
+                                    Button(action: isLastBlock ? { viewModel.endWorkout() } : nextBlock) {
+                                        Text(isLastBlock ? "End Workout" : (blockRestComplete ? "Next Block" : "Skip Rest"))
+                                            .frame(maxWidth: .infinity)
+                                            .padding()
+                                            .background(Color.blue)
+                                            .foregroundColor(.white)
+                                            .cornerRadius(10)
                                     }
                                 }
                                 .padding(.horizontal)
@@ -160,49 +131,46 @@ struct WorkoutTrackingView: View {
                         .padding()
                     }
                 }
-                .navigationTitle("Tracking: \(routine.routineDay)")
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
+                    ToolbarItem(placement: .navigationBarLeading) {
                         Button("Minimize") {
                             withAnimation(.spring()) {
                                 viewModel.minimizeWorkout()
-                                viewModel.showingWorkoutSheet = false
                             }
                         }
+                        .foregroundColor(.white)
                     }
-                    ToolbarItem(placement: .destructiveAction) {
-                        Button("End Workout", role: .destructive) {
+                    
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("End", role: .destructive) {
                             viewModel.endWorkout()
-                            dismiss()
                         }
-                    }
-                }
-                .sheet(isPresented: $showingBlockRestTimer) {
-                    if isLastBlock {
-                        BlockRestTimerView(
-                            seconds: $blockRestSeconds,
-                            isPresented: $showingBlockRestTimer,
-                            onComplete: {
-                                blockRestComplete = true
-                                dismiss()  // Dismiss the entire workout view
-                            }
-                        )
-                    } else {
-                        BlockRestTimerView(
-                            seconds: $blockRestSeconds,
-                            isPresented: $showingBlockRestTimer,
-                            onComplete: {
-                                blockRestComplete = true
-                                nextBlock()
-                            }
-                        )
+                        .foregroundColor(.red)
                     }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(UIColor.systemBackground))
-            .ignoresSafeArea()
-            .transition(.move(edge: .bottom))
+            .sheet(isPresented: $showingBlockRestTimer) {
+                if isLastBlock {
+                    BlockRestTimerView(
+                        seconds: $blockRestSeconds,
+                        isPresented: $showingBlockRestTimer,
+                        onComplete: {
+                            blockRestComplete = true
+                            dismiss()  // Dismiss the entire workout view
+                        }
+                    )
+                } else {
+                    BlockRestTimerView(
+                        seconds: $blockRestSeconds,
+                        isPresented: $showingBlockRestTimer,
+                        onComplete: {
+                            blockRestComplete = true
+                            nextBlock()
+                        }
+                    )
+                }
+            }
         }
     }
     
@@ -234,62 +202,58 @@ struct WorkoutTrackingView: View {
     }
 }
 
-struct ExerciseTrackingRow: View {
+// New exercise card design
+struct ExerciseTrackingCard: View {
     @ObservedObject var exercise: Exercise
     let viewModel: RoutineViewModel
     let isComplete: (Int16) -> Bool
     let onComplete: () -> Void
     
-    @State private var showingTimer = false
-    @State private var timerSeconds = 90 // Default rest timer
-    
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(exercise.exerciseName)
-                .font(.headline)
-            
+        VStack(spacing: 12) {
             HStack {
-                Text("\(exercise.completedSets)/\(exercise.sets) sets")
-                    .font(.subheadline)
+                Text(exercise.exerciseName)
+                    .font(.headline)
                 
                 Spacer()
                 
-                Text("\(exercise.repsPerSet) reps @ \(exercise.weight, specifier: "%.1f")kg")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                Text("\(exercise.completedSets)/\(exercise.sets)")
+                    .font(.headline)
+                    + Text(" sets")
+                    .foregroundColor(.gray)
             }
             
             HStack {
-                Button(action: completeSet) {
-                    Text("Complete Set")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(exercise.completedSets >= exercise.sets)
+                Text("\(exercise.repsPerSet) reps • \(Int(exercise.weight))kg")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
                 
-                Button(action: { showingTimer = true }) {
-                    Image(systemName: "timer")
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.bordered)
+                Spacer()
+                
+                Text("\(Int(exercise.repsPerSet * (exercise.sets - exercise.completedSets))) reps left")
+                    .font(.caption)
+                    .foregroundColor(.gray)
             }
+            
+            Button(action: {
+                exercise.completedSets += 1
+                if isComplete(exercise.completedSets) {
+                    onComplete()
+                }
+                viewModel.updateLiveActivity()
+            }) {
+                Text("Complete set")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+            .disabled(exercise.completedSets >= exercise.sets)
         }
-        .padding(.vertical, 4)
-        .sheet(isPresented: $showingTimer) {
-            RestTimerView(seconds: $timerSeconds, isPresented: $showingTimer)
-        }
-    }
-    
-    private func completeSet() {
-        guard exercise.completedSets < exercise.sets else { return }
-        exercise.completedSets += 1
-        try? exercise.managedObjectContext?.save()
-        
-        if isComplete(exercise.completedSets) {
-            onComplete()
-            viewModel.updateLiveActivity()
-        }
+        .padding()
+        .background(Color(white: 0.1))
+        .cornerRadius(16)
     }
 }
 
@@ -457,6 +421,34 @@ struct BlockRestTimerView: View {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
+    }
+}
+
+// New segmented progress bar component
+struct SegmentedProgressBar: View {
+    let totalSegments: Int
+    let currentSegment: Int
+    let completedSegments: [Int]
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<totalSegments, id: \.self) { index in
+                Capsule()
+                    .fill(segmentColor(for: index))
+                    .frame(height: 8)
+            }
+        }
+        .frame(height: 8)
+    }
+    
+    private func segmentColor(for index: Int) -> Color {
+        if completedSegments.contains(index) {
+            return .green
+        } else if index == currentSegment {
+            return .blue
+        } else {
+            return Color.gray.opacity(0.3)
+        }
     }
 }
 
