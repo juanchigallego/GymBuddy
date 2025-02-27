@@ -293,30 +293,39 @@ class RoutineViewModel: ObservableObject {
     }
     
     func testLiveActivity() {
-        if #available(iOS 16.1, *) {
-            let attributes = WorkoutActivityAttributes(
-                routineName: "Test Workout",
-                totalBlocks: 3
-            )
-            
-            let initialState = WorkoutActivityAttributes.ContentState(
-                routineName: "Test Workout",
-                currentBlock: "Block 1",
-                blockProgress: 1,
-                totalBlocks: 3,
-                exerciseProgress: 0,
-                totalExercises: 4,
-                startTime: Date()
-            )
-            
-            Task {
-                let activity = try? await Activity.request(
+        guard #available(iOS 16.1, *) else {
+            print("Live Activities require iOS 16.1 or later")
+            return
+        }
+        
+        print("Testing Live Activity...")
+        
+        let attributes = WorkoutActivityAttributes(
+            routineName: "Test Workout",
+            totalBlocks: 3
+        )
+        
+        let initialState = WorkoutActivityAttributes.ContentState(
+            routineName: "Test Workout",
+            currentBlock: "Block 1",
+            blockProgress: 1,
+            totalBlocks: 3,
+            exerciseProgress: 0,
+            totalExercises: 4,
+            startTime: Date()
+        )
+        
+        Task {
+            do {
+                print("Requesting Live Activity...")
+                let activity = try await Activity<WorkoutActivityAttributes>.request(
                     attributes: attributes,
                     contentState: initialState
                 )
+                print("Live Activity started with ID: \(activity.id)")
                 
                 // Simulate progress after 3 seconds
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                try await Task.sleep(for: .seconds(3))
                 
                 let updatedState = WorkoutActivityAttributes.ContentState(
                     routineName: "Test Workout",
@@ -328,7 +337,11 @@ class RoutineViewModel: ObservableObject {
                     startTime: Date()
                 )
                 
-                await activity?.update(using: updatedState)
+                await activity.update(using: updatedState)
+                print("Live Activity updated")
+            } catch {
+                print("Error starting Live Activity: \(error)")
+                print("Detailed error: \(error.localizedDescription)")
             }
         }
     }
