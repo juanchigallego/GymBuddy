@@ -427,4 +427,22 @@ class RoutineViewModel: ObservableObject {
             }
         }
     }
+    
+    func dismissWorkout() {
+        print("Dismissing workout without completion")
+        
+        isTrackingWorkout = false
+        showingWorkoutSheet = false
+        isMinimized = false
+        workoutStartTime = nil
+        blockStartTime = nil
+        blockTimer?.invalidate()
+        blockTimer = nil
+        blockTimeElapsed = 0
+        completedBlocks.removeAll()
+        
+        // Reset the current routine and block index
+        currentRoutine = nil
+        currentBlockIndex = 0
+    }
 } 

@@ -7,6 +7,7 @@ struct WorkoutTrackingView: View {
     @Environment(\.dismiss) var dismiss
     @State private var showingBlockRestTimer = false
     @State private var blockRestComplete = false
+    @State private var showingDismissConfirmation = false
     
     private var blocks: [Block] {
         routine.blockArray
@@ -149,10 +150,9 @@ struct WorkoutTrackingView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
-                        viewModel.endWorkout()
-                        dismiss()
+                        showingDismissConfirmation = true
                     }) {
-                        Label("End Workout", systemImage: "xmark.circle.fill")
+                        Label("Dismiss Workout", systemImage: "xmark.circle.fill")
                             .foregroundColor(.red)
                     }
                 }
@@ -167,6 +167,19 @@ struct WorkoutTrackingView: View {
                         }
                     }
                 }
+            }
+            .confirmationDialog(
+                "Are you sure you want to dismiss this workout?",
+                isPresented: $showingDismissConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Dismiss Workout", role: .destructive) {
+                    viewModel.dismissWorkout()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This workout will not be saved and all progress will be lost.")
             }
         }
         .sheet(isPresented: $showingBlockRestTimer) {
