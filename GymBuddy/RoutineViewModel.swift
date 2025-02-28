@@ -40,11 +40,14 @@ class RoutineViewModel: ObservableObject {
     @Published var totalWorkoutTime: TimeInterval = 0
     @Published var skippedBlocks: Set<UUID> = []
     
+    @Published var completedWorkouts: [CompletedWorkout] = []
+    
     private let viewContext: NSManagedObjectContext
     
     init(context: NSManagedObjectContext) {
         self.viewContext = context
         fetchRoutines()
+        fetchCompletedWorkouts()
     }
     
     var currentBlock: Block? {
@@ -62,6 +65,17 @@ class RoutineViewModel: ObservableObject {
             routines = try viewContext.fetch(request)
         } catch {
             print("Error fetching routines: \(error)")
+        }
+    }
+    
+    func fetchCompletedWorkouts() {
+        let request = NSFetchRequest<CompletedWorkout>(entityName: "CompletedWorkout")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CompletedWorkout.date, ascending: false)]
+        
+        do {
+            completedWorkouts = try viewContext.fetch(request)
+        } catch {
+            print("Error fetching completed workouts: \(error)")
         }
     }
     
@@ -251,6 +265,7 @@ class RoutineViewModel: ObservableObject {
         
         if let startTime = workoutStartTime {
             totalWorkoutTime = Date().timeIntervalSince(startTime)
+            saveCompletedWorkout()
             showingWorkoutSummary = true
         }
         
@@ -444,5 +459,42 @@ class RoutineViewModel: ObservableObject {
         // Reset the current routine and block index
         currentRoutine = nil
         currentBlockIndex = 0
+    }
+    
+    func saveCompletedWorkout() {
+        guard let currentRoutine = currentRoutine else { return }
+        
+        let completedWorkout = CompletedWorkout(context: viewContext)
+        completedWorkout.id = UUID()
+        completedWorkout.date = Date()
+        completedWorkout.routineName = currentRoutine.routineDay
+        completedWorkout.totalTime = totalWorkoutTime
+        
+        for block in currentRoutine.blockArray {
+            let completedBlock = CompletedBlock(context: viewContext)
+            completedBlock.id = UUID()
+            completedBlock.blockName = block.blockName
+            completedBlock.sets = block.sets
+            completedBlock.isSkipped = skippedBlocks.contains(block.blockID)
+            completedBlock.completionTime = blockCompletionTimes[block.blockID] ?? 0
+            completedBlock.workout = completedWorkout
+            
+            for exercise in block.exerciseArray {
+                let completedExercise = CompletedExercise(context: viewContext)
+                completedExercise.id = UUID()
+                completedExercise.exerciseName = exercise.exerciseName
+                completedExercise.repsPerSet = exercise.repsPerSet
+                completedExercise.weight = exercise.weight
+                completedExercise.notes = exercise.notes
+                completedExercise.block = completedBlock
+            }
+        }
+        
+        do {
+            try viewContext.save()
+            fetchCompletedWorkouts()
+        } catch {
+            print("Error saving completed workout: \(error)")
+        }
     }
 } 

@@ -24,4 +24,28 @@
         <attribute name="targetMuscleGroups" optional="YES" attributeType="Transformable" customClassName="NSArray"/>
         <relationship name="blocks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Block" inverseName="routine" inverseEntity="Block"/>
     </entity>
+    <entity name="CompletedWorkout" representedClassName="GymBuddy.CompletedWorkout" syncable="YES">
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="routineName" attributeType="String"/>
+        <attribute name="totalTime" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <relationship name="blocks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CompletedBlock" inverseName="workout" inverseEntity="CompletedBlock"/>
+    </entity>
+    <entity name="CompletedBlock" representedClassName="GymBuddy.CompletedBlock" syncable="YES">
+        <attribute name="blockName" attributeType="String"/>
+        <attribute name="completionTime" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isSkipped" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="sets" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="exercises" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CompletedExercise" inverseName="block" inverseEntity="CompletedExercise"/>
+        <relationship name="workout" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CompletedWorkout" inverseName="blocks" inverseEntity="CompletedWorkout"/>
+    </entity>
+    <entity name="CompletedExercise" representedClassName="GymBuddy.CompletedExercise" syncable="YES">
+        <attribute name="exerciseName" attributeType="String"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="repsPerSet" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="weight" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <relationship name="block" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CompletedBlock" inverseName="exercises" inverseEntity="CompletedBlock"/>
+    </entity>
 </model>

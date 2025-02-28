@@ -98,6 +98,7 @@ Next steps:
    - Update model classes
 2. Update UI to reflect new exercise/set structure
 3. Enhance workout tracking experience
+4. Add the posibility to share a workout summary as an image or text
 
 ## Technical Debt
 - Review and optimize Core Data queries

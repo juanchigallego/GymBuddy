@@ -53,7 +53,7 @@ struct WorkoutTrackingView: View {
                                     .bold()
                                 
                                 HStack(spacing: 16) {
-                                    Label("\(viewModel.completedSets)/\(currentBlock.sets) sets", systemImage: "number.circle.fill")
+                                    Label("\(viewModel.completedSets)/\(currentBlock.sets) sets", systemImage: "number")
                                         .foregroundColor(.blue)
                                     
                                     Spacer()
@@ -152,7 +152,7 @@ struct WorkoutTrackingView: View {
                     Button(action: {
                         showingDismissConfirmation = true
                     }) {
-                        Label("Dismiss Workout", systemImage: "xmark.circle.fill")
+                        Label("Dismiss Workout", systemImage: "xmark")
                             .foregroundColor(.red)
                     }
                 }
@@ -163,7 +163,7 @@ struct WorkoutTrackingView: View {
                             viewModel.pauseWorkout()
                             dismiss()
                         }) {
-                            Label("Minimize", systemImage: "minus.circle.fill")
+                            Label("Minimize", systemImage: "minus")
                         }
                     }
                 }
@@ -354,7 +354,7 @@ struct ExerciseCard: View {
                 .font(.headline)
             
             HStack(spacing: 16) {
-                Label("\(exercise.repsPerSet) reps", systemImage: "repeat.circle.fill")
+                Label("\(exercise.repsPerSet) reps", systemImage: "repeat")
                 Spacer()
                 Label("\(String(format: "%.1f", exercise.weight))kg", systemImage: "scalemass.fill")
             }

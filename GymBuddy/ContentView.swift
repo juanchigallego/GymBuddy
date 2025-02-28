@@ -9,49 +9,56 @@ import SwiftUI
 import CoreData
 
 struct ContentView: View {
-    @EnvironmentObject var viewModel: RoutineViewModel
+    let context: NSManagedObjectContext
+    @StateObject private var viewModel: RoutineViewModel
     
     init(context: NSManagedObjectContext) {
-        // No need to create viewModel here anymore
+        self.context = context
+        self._viewModel = StateObject(wrappedValue: RoutineViewModel(context: context))
     }
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Main content
-            NavigationStack {
-                List {
-                    ForEach(viewModel.routines, id: \.routineID) { routine in
-                        NavigationLink(destination: RoutineDetailView(routine: routine, viewModel: viewModel)) {
-                            RoutineRowView(routine: routine)
+            TabView {
+                NavigationStack {
+                    List {
+                        ForEach(viewModel.routines) { routine in
+                            NavigationLink {
+                                RoutineDetailView(routine: routine, viewModel: viewModel)
+                            } label: {
+                                RoutineRowView(routine: routine)
+                            }
+                        }
+                        .onDelete { indexSet in
+                            for index in indexSet {
+                                viewModel.deleteRoutine(viewModel.routines[index])
+                            }
                         }
                     }
-                    .onDelete { indexSet in
-                        for index in indexSet {
-                            viewModel.deleteRoutine(viewModel.routines[index])
+                    .navigationTitle("Routines")
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button {
+                                viewModel.isAddingRoutine = true
+                            } label: {
+                                Image(systemName: "plus")
+                            }
                         }
+                    }
+                    .sheet(isPresented: $viewModel.isAddingRoutine) {
+                        AddRoutineView(viewModel: viewModel)
                     }
                 }
-                .navigationTitle("My Routines")
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: { viewModel.isAddingRoutine = true }) {
-                            Image(systemName: "plus")
-                        }
-                    }
-                    
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Test Live Activity") {
-                            viewModel.testLiveActivity()
-                        }
-                    }
+                .tabItem {
+                    Label("Routines", systemImage: "dumbbell.fill")
                 }
-                .sheet(isPresented: $viewModel.isAddingRoutine) {
-                    AddRoutineView(viewModel: viewModel)
-                }
+                
+                WorkoutHistoryView(viewModel: viewModel)
+                    .tabItem {
+                        Label("History", systemImage: "clock.fill")
+                    }
             }
-            .padding(.bottom, viewModel.isMinimized ? 64 : 0)
             
-            // Workout view container - this stays in place during transitions
             if let currentRoutine = viewModel.currentRoutine {
                 ZStack {
                     // Background overlay
@@ -72,6 +79,7 @@ struct ContentView: View {
                             // Mini tracker
                             MiniWorkoutTrackerView(routine: currentRoutine, viewModel: viewModel)
                                 .transition(.identity)
+                                .padding(.bottom, 49) // Standard tab bar height
                         }
                     }
                     .zIndex(2)
