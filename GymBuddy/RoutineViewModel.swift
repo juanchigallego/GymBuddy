@@ -28,10 +28,14 @@ class RoutineViewModel: ObservableObject {
     @Published var isMinimized = false
     @Published var currentActivity: Activity<WorkoutActivityAttributes>?
     @Published var showingWorkoutSummary = false
+    @Published var completedSets: Int16 = 0
+    @Published var completedBlocks: Set<UUID> = []
     
     // Workout timing properties
     private var workoutStartTime: Date?
-    private var blockStartTime: Date?
+    var blockStartTime: Date?
+    @Published var blockTimeElapsed: Int = 0
+    private var blockTimer: Timer?
     @Published var blockCompletionTimes: [UUID: TimeInterval] = [:]
     @Published var totalWorkoutTime: TimeInterval = 0
     @Published var skippedBlocks: Set<UUID> = []
@@ -134,11 +138,14 @@ class RoutineViewModel: ObservableObject {
         for block in routine.blockArray {
             block.completedSets = 0
         }
+        completedSets = 0
+        completedBlocks.removeAll()
         try? viewContext.save()
         
         // Reset timing properties
         workoutStartTime = Date()
         blockStartTime = Date()
+        startBlockTimer()
         blockCompletionTimes.removeAll()
         skippedBlocks.removeAll()
         totalWorkoutTime = 0
@@ -154,6 +161,14 @@ class RoutineViewModel: ObservableObject {
         
         // Start Live Activity
         startLiveActivity(routine: routine)
+    }
+    
+    private func startBlockTimer() {
+        blockTimeElapsed = 0
+        blockTimer?.invalidate()
+        blockTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.blockTimeElapsed += 1
+        }
     }
     
     private func startLiveActivity(routine: Routine) {
@@ -223,8 +238,12 @@ class RoutineViewModel: ObservableObject {
             blockCompletionTimes[currentBlock.blockID] = blockTime
         }
         
+        // Add block to completed blocks
+        completedBlocks.insert(currentBlock.blockID)
+        
         // Reset block start time for next block
         self.blockStartTime = Date()
+        blockTimeElapsed = 0
     }
     
     func endWorkout() {
@@ -240,6 +259,10 @@ class RoutineViewModel: ObservableObject {
         isMinimized = false
         workoutStartTime = nil
         blockStartTime = nil
+        blockTimer?.invalidate()
+        blockTimer = nil
+        blockTimeElapsed = 0
+        completedBlocks.removeAll()
     }
     
     func updateRoutine(_ routine: Routine, day: String, muscleGroups: [String], blocks: [Block], notes: String?) {
@@ -309,6 +332,20 @@ class RoutineViewModel: ObservableObject {
     
     func updateCurrentBlock(index: Int) {
         currentBlockIndex = index
+        blockStartTime = Date()
+        blockTimeElapsed = 0
+        completedSets = 0
+    }
+    
+    func logSet() {
+        guard let currentBlock = currentBlock else { return }
+        if completedSets < currentBlock.sets {
+            completedSets += 1
+            if completedSets == currentBlock.sets {
+                completeBlock()
+            }
+            updateLiveActivity()
+        }
     }
     
     func updateLiveActivity() {

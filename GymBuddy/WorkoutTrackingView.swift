@@ -5,12 +5,8 @@ struct WorkoutTrackingView: View {
     let routine: Routine
     @ObservedObject var viewModel: RoutineViewModel
     @Environment(\.dismiss) var dismiss
-    @State private var completedBlocks: Set<UUID> = []
     @State private var showingBlockRestTimer = false
     @State private var blockRestComplete = false
-    @State private var completedSets: Int16 = 0
-    @State private var blockTimer: Timer?
-    @State private var blockTimeElapsed: Int = 0
     
     private var blocks: [Block] {
         routine.blockArray
@@ -22,7 +18,7 @@ struct WorkoutTrackingView: View {
     }
     
     private var isWorkoutComplete: Bool {
-        completedBlocks.count == blocks.count
+        viewModel.completedBlocks.count == blocks.count
     }
     
     private var isLastBlock: Bool {
@@ -30,8 +26,8 @@ struct WorkoutTrackingView: View {
     }
     
     private func formatBlockTime() -> String {
-        let minutes = blockTimeElapsed / 60
-        let seconds = blockTimeElapsed % 60
+        let minutes = viewModel.blockTimeElapsed / 60
+        let seconds = viewModel.blockTimeElapsed % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
     
@@ -45,7 +41,7 @@ struct WorkoutTrackingView: View {
                     // Fixed header section
                     VStack(spacing: 16) {
                         // Progress bar
-                        ProgressView(value: Double(completedBlocks.count), total: Double(blocks.count))
+                        ProgressView(value: Double(viewModel.completedBlocks.count), total: Double(blocks.count))
                             .tint(.blue)
                         
                         if let currentBlock = currentBlock {
@@ -56,7 +52,7 @@ struct WorkoutTrackingView: View {
                                     .bold()
                                 
                                 HStack(spacing: 16) {
-                                    Label("\(completedSets)/\(currentBlock.sets) sets", systemImage: "number.circle.fill")
+                                    Label("\(viewModel.completedSets)/\(currentBlock.sets) sets", systemImage: "number.circle.fill")
                                         .foregroundColor(.blue)
                                     
                                     Spacer()
@@ -93,21 +89,16 @@ struct WorkoutTrackingView: View {
                             HStack(spacing: 12) {
                                 // Complete Set button
                                 Button(action: {
-                                    if completedSets < currentBlock.sets {
-                                        completedSets += 1
-                                        if completedSets == currentBlock.sets {
-                                            completeCurrentBlock()
-                                        }
-                                    }
+                                    viewModel.logSet()
                                 }) {
                                     Label("Complete Set", systemImage: "checkmark.circle.fill")
                                         .frame(maxWidth: .infinity)
                                         .padding()
-                                        .background(completedSets >= currentBlock.sets ? Color.gray : Color.blue)
+                                        .background(viewModel.completedSets >= currentBlock.sets ? Color.gray : Color.blue)
                                         .foregroundColor(.white)
                                         .cornerRadius(10)
                                 }
-                                .disabled(completedSets >= currentBlock.sets)
+                                .disabled(viewModel.completedSets >= currentBlock.sets)
                                 
                                 // Skip Block button
                                 Button(action: {
@@ -127,7 +118,7 @@ struct WorkoutTrackingView: View {
                                 }
                             }
                             
-                            if completedSets == currentBlock.sets {
+                            if viewModel.completedSets == currentBlock.sets {
                                 Button(action: {
                                     if !isLastBlock && currentBlock.restSeconds > 0 {
                                         showingBlockRestTimer = true
@@ -193,32 +184,16 @@ struct WorkoutTrackingView: View {
                 }
             }
         }
-        .onAppear {
-            startBlockTimer()
-        }
-        .onDisappear {
-            blockTimer?.invalidate()
-        }
-    }
-    
-    private func startBlockTimer() {
-        blockTimeElapsed = 0
-        blockTimer?.invalidate()
-        blockTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            blockTimeElapsed += 1
-        }
     }
     
     private func completeCurrentBlock() {
         if let currentBlock = currentBlock {
-            completedBlocks.insert(currentBlock.blockID)
             viewModel.completeBlock()
         }
     }
     
     private func skipCurrentBlock() {
         if let currentBlock = currentBlock {
-            completedBlocks.insert(currentBlock.blockID)
             viewModel.completeBlock(skipped: true)
         }
     }
@@ -226,9 +201,7 @@ struct WorkoutTrackingView: View {
     private func moveToNextBlock() {
         if !isLastBlock {
             viewModel.updateCurrentBlock(index: viewModel.currentBlockIndex + 1)
-            completedSets = 0
             showingBlockRestTimer = false
-            startBlockTimer() // Reset and start timer for new block
         } else {
             viewModel.endWorkout()
             dismiss()
