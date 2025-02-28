@@ -27,6 +27,14 @@ class RoutineViewModel: ObservableObject {
     @Published var currentBlockIndex = 0
     @Published var isMinimized = false
     @Published var currentActivity: Activity<WorkoutActivityAttributes>?
+    @Published var showingWorkoutSummary = false
+    
+    // Workout timing properties
+    private var workoutStartTime: Date?
+    private var blockStartTime: Date?
+    @Published var blockCompletionTimes: [UUID: TimeInterval] = [:]
+    @Published var totalWorkoutTime: TimeInterval = 0
+    @Published var skippedBlocks: Set<UUID> = []
     
     private let viewContext: NSManagedObjectContext
     
@@ -93,11 +101,10 @@ class RoutineViewModel: ObservableObject {
         }
     }
     
-    func addExercise(to block: Block, name: String, sets: Int16, reps: Int16, weight: Double) {
+    func addExercise(to block: Block, name: String, reps: Int16, weight: Double) {
         let exercise = Exercise(context: viewContext)
         exercise.id = UUID()
         exercise.name = name
-        exercise.sets = sets
         exercise.repsPerSet = reps
         exercise.weight = weight
         exercise.block = block
@@ -123,13 +130,18 @@ class RoutineViewModel: ObservableObject {
     func startWorkout(routine: Routine) {
         print("Starting workout with routine: \(routine.routineDay)")
         
-        // Reset completed sets for all exercises
+        // Reset completed sets for all blocks
         for block in routine.blockArray {
-            for exercise in block.exerciseArray {
-                exercise.completedSets = 0
-            }
+            block.completedSets = 0
         }
         try? viewContext.save()
+        
+        // Reset timing properties
+        workoutStartTime = Date()
+        blockStartTime = Date()
+        blockCompletionTimes.removeAll()
+        skippedBlocks.removeAll()
+        totalWorkoutTime = 0
         
         // Set up the new workout
         withAnimation {
@@ -199,13 +211,35 @@ class RoutineViewModel: ObservableObject {
         }
     }
     
+    func completeBlock(skipped: Bool = false) {
+        guard let blockStartTime = blockStartTime,
+              let currentBlock = currentBlock else { return }
+        
+        if skipped {
+            skippedBlocks.insert(currentBlock.blockID)
+        } else {
+            // Record the time taken for this block only if not skipped
+            let blockTime = Date().timeIntervalSince(blockStartTime)
+            blockCompletionTimes[currentBlock.blockID] = blockTime
+        }
+        
+        // Reset block start time for next block
+        self.blockStartTime = Date()
+    }
+    
     func endWorkout() {
         print("Ending workout")
+        
+        if let startTime = workoutStartTime {
+            totalWorkoutTime = Date().timeIntervalSince(startTime)
+            showingWorkoutSummary = true
+        }
+        
         isTrackingWorkout = false
         showingWorkoutSheet = false
         isMinimized = false
-        currentRoutine = nil
-        currentBlockIndex = 0
+        workoutStartTime = nil
+        blockStartTime = nil
     }
     
     func updateRoutine(_ routine: Routine, day: String, muscleGroups: [String], blocks: [Block], notes: String?) {
@@ -243,25 +277,26 @@ class RoutineViewModel: ObservableObject {
         }
     }
     
-    func updateBlock(_ block: Block, name: String, exercises: [Exercise]) {
+    func updateBlock(_ block: Block, name: String, exercises: [Exercise], sets: Int16, restSeconds: Int16) {
         viewContext.perform {
             block.name = name
+            block.sets = sets
+            block.restSeconds = restSeconds
             
-            // Remove old exercises
-            if let existingExercises = block.exercises {
-                for case let exercise as Exercise in existingExercises {
-                    self.viewContext.delete(exercise)
+            // Create a set of exercise IDs that should be kept
+            let exerciseIdsToKeep = Set(exercises.compactMap { $0.id })
+            
+            // Remove exercises that are no longer in the updated list
+            if let existingExercises = block.exercises as? Set<Exercise> {
+                for exercise in existingExercises {
+                    if !exerciseIdsToKeep.contains(exercise.id ?? UUID()) {
+                        self.viewContext.delete(exercise)
+                    }
                 }
             }
             
-            // Add new exercises
-            let exerciseSet = NSSet(array: exercises)
-            block.exercises = exerciseSet
-            
-            // Update inverse relationships
-            for exercise in exercises {
-                exercise.block = block
-            }
+            // Update the exercises relationship
+            block.exercises = NSSet(array: exercises)
             
             do {
                 try self.viewContext.save()
@@ -286,8 +321,8 @@ class RoutineViewModel: ObservableObject {
             currentBlock: currentBlock.blockName,
             blockProgress: currentBlockIndex + 1,
             totalBlocks: currentRoutine.blockArray.count,
-            exerciseProgress: currentBlock.exerciseArray.filter { $0.completedSets >= $0.sets }.count,
-            totalExercises: currentBlock.exerciseArray.count,
+            exerciseProgress: Int(currentBlock.completedSets),
+            totalExercises: Int(currentBlock.sets),
             startTime: Date()
         )
         

@@ -111,7 +111,7 @@ struct WorkoutTrackingView: View {
                                 
                                 // Skip Block button
                                 Button(action: {
-                                    completeCurrentBlock()
+                                    skipCurrentBlock()
                                     if !isLastBlock {
                                         moveToNextBlock()
                                     } else {
@@ -212,6 +212,14 @@ struct WorkoutTrackingView: View {
     private func completeCurrentBlock() {
         if let currentBlock = currentBlock {
             completedBlocks.insert(currentBlock.blockID)
+            viewModel.completeBlock()
+        }
+    }
+    
+    private func skipCurrentBlock() {
+        if let currentBlock = currentBlock {
+            completedBlocks.insert(currentBlock.blockID)
+            viewModel.completeBlock(skipped: true)
         }
     }
     

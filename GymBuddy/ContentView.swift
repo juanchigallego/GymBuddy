@@ -78,6 +78,11 @@ struct ContentView: View {
                 }
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.showingWorkoutSheet)
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.isMinimized)
+                
+                // Workout Summary Sheet
+                .sheet(isPresented: $viewModel.showingWorkoutSummary) {
+                    WorkoutSummaryView(routine: currentRoutine, viewModel: viewModel)
+                }
             }
         }
     }
