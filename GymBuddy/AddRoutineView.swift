@@ -22,14 +22,7 @@ struct AddRoutineView: View {
                 
                 Section("Blocks") {
                     ForEach(blocks, id: \.blockID) { block in
-                        VStack(alignment: .leading) {
-                            Text(block.blockName)
-                                .font(.headline)
-                            ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
-                                Text("• \(exercise.exerciseName): \(exercise.sets)×\(exercise.repsPerSet) @ \(exercise.weight)kg")
-                                    .font(.subheadline)
-                            }
-                        }
+                        BlockRowView(block: block)
                     }
                     
                     Button("Add Block") {
@@ -69,22 +62,45 @@ struct AddRoutineView: View {
     }
 }
 
+struct BlockRowView: View {
+    let block: Block
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(block.blockName)
+                .font(.headline)
+            ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
+                Text("• \(exercise.exerciseName): \(exercise.repsPerSet) reps @ \(exercise.weight)kg")
+                    .font(.subheadline)
+            }
+        }
+    }
+}
+
 struct AddBlockView: View {
     @Binding var blocks: [Block]
     @Environment(\.dismiss) var dismiss
     
     @State private var blockName = ""
+    @State private var numberOfSets: Int16 = 3
     @State private var exercises: [Exercise] = []
     @State private var showingAddExercise = false
+    @State private var restSeconds: Int16 = 0
     
     var body: some View {
         NavigationStack {
             Form {
                 TextField("Block Name (e.g. Chest)", text: $blockName)
+                Stepper("Number of Sets: \(numberOfSets)", value: $numberOfSets, in: 1...10)
+                
+                Section("Rest Timer") {
+                    Stepper("Rest Time: \(restSeconds) seconds", value: $restSeconds, in: 0...300, step: 30)
+                        .foregroundColor(restSeconds > 0 ? .primary : .secondary)
+                }
                 
                 Section("Exercises") {
                     ForEach(exercises, id: \.exerciseID) { exercise in
-                        Text("\(exercise.exerciseName): \(exercise.sets)×\(exercise.repsPerSet) @ \(exercise.weight)kg")
+                        Text("\(exercise.exerciseName): \(exercise.repsPerSet) reps @ \(exercise.weight)kg")
                     }
                     
                     Button("Add Exercise") {
@@ -117,12 +133,13 @@ struct AddBlockView: View {
         let newBlock = Block(context: context)
         newBlock.id = UUID()
         newBlock.name = blockName
+        newBlock.sets = numberOfSets
+        newBlock.restSeconds = restSeconds
         
         for exercise in exercises {
             let newExercise = Exercise(context: context)
             newExercise.id = UUID()
             newExercise.name = exercise.exerciseName
-            newExercise.sets = exercise.sets
             newExercise.repsPerSet = exercise.repsPerSet
             newExercise.weight = exercise.weight
             newExercise.block = newBlock
@@ -138,7 +155,6 @@ struct AddExerciseView: View {
     @Environment(\.dismiss) var dismiss
     
     @State private var name = ""
-    @State private var sets: Int16 = 3
     @State private var reps: Int16 = 8
     @State private var weight: Double = 0.0
     @State private var notes = ""
@@ -147,7 +163,6 @@ struct AddExerciseView: View {
         NavigationStack {
             Form {
                 TextField("Exercise Name", text: $name)
-                Stepper("Sets: \(sets)", value: $sets, in: 1...10)
                 Stepper("Reps: \(reps)", value: $reps, in: 1...30)
                 HStack {
                     Text("Weight:")
@@ -178,7 +193,6 @@ struct AddExerciseView: View {
         let exercise = Exercise(context: context)
         exercise.id = UUID()
         exercise.name = name
-        exercise.sets = sets
         exercise.repsPerSet = reps
         exercise.weight = weight
         exercise.notes = notes.isEmpty ? nil : notes

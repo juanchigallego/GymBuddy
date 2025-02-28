@@ -159,7 +159,7 @@ struct ExerciseRowView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(exercise.exerciseName)
                 .font(.headline)
-            Text("\(exercise.sets) sets × \(exercise.repsPerSet) reps")
+            Text("\(exercise.repsPerSet) reps")
             if exercise.weight > 0 {
                 Text("Weight: \(exercise.weight, specifier: "%.1f")kg")
             }

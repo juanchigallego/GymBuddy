@@ -7,8 +7,10 @@ struct WorkoutTrackingView: View {
     @Environment(\.dismiss) var dismiss
     @State private var completedBlocks: Set<UUID> = []
     @State private var showingBlockRestTimer = false
-    @State private var blockRestSeconds = 180 // 3 minutes default rest between blocks
     @State private var blockRestComplete = false
+    @State private var completedSets: Int16 = 0
+    @State private var blockTimer: Timer?
+    @State private var blockTimeElapsed: Int = 0
     
     private var blocks: [Block] {
         routine.blockArray
@@ -27,471 +29,447 @@ struct WorkoutTrackingView: View {
         viewModel.currentBlockIndex == blocks.count - 1
     }
     
+    private func formatBlockTime() -> String {
+        let minutes = blockTimeElapsed / 60
+        let seconds = blockTimeElapsed % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+    
     var body: some View {
-        if viewModel.isMinimized {
-            // Mini tracker is now handled in MiniWorkoutTrackerView
-            EmptyView()
-        } else {
-            NavigationStack {
-                ZStack {
-                    // Background
-                    Color.black.ignoresSafeArea()
-                    
-                    if let block = currentBlock {
-                        VStack(spacing: 16) {
-                            // Progress bar
-                            SegmentedProgressBar(
-                                totalSegments: blocks.count,
-                                currentSegment: viewModel.currentBlockIndex,
-                                completedSegments: completedBlocks.map { id in
-                                    blocks.firstIndex { $0.blockID == id } ?? -1
-                                }
-                            )
-                            .padding(.horizontal)
-                            .padding(.top)
-                            
-                            // Routine name and block
-                            VStack(spacing: 4) {
-                                Text(routine.routineDay)
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                                
-                                Text(block.blockName)
-                                    .font(.title)
+        NavigationStack {
+            ZStack {
+                Color(.systemBackground)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Fixed header section
+                    VStack(spacing: 16) {
+                        // Progress bar
+                        ProgressView(value: Double(completedBlocks.count), total: Double(blocks.count))
+                            .tint(.blue)
+                        
+                        if let currentBlock = currentBlock {
+                            // Block header
+                            VStack(spacing: 8) {
+                                Text(currentBlock.blockName)
+                                    .font(.title2)
                                     .bold()
-                            }
-                            .foregroundColor(.white)
-                            
-                            // Notes if any
-                            if let notes = routine.routineNotes, !notes.isEmpty {
-                                Text(notes)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .padding(.horizontal)
-                            }
-                            
-                            // Exercise list
-                            ScrollView {
-                                LazyVStack(spacing: 12) {
-                                    ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
-                                        ExerciseTrackingCard(
-                                            exercise: exercise,
-                                            viewModel: viewModel,
-                                            isComplete: { completedSets in
-                                                completedSets >= exercise.sets
-                                            },
-                                            onComplete: {
-                                                checkBlockCompletion(block)
-                                            }
-                                        )
-                                    }
-                                }
-                                .padding()
-                            }
-                            
-                            // Bottom buttons
-                            if completedBlocks.contains(block.blockID) {
+                                
                                 HStack(spacing: 16) {
-                                    Button(action: { showingBlockRestTimer = true }) {
-                                        Label("Rest", systemImage: "timer")
-                                            .frame(maxWidth: .infinity)
-                                            .padding()
-                                            .background(Color.blue.opacity(0.2))
-                                            .foregroundColor(.white)
-                                            .cornerRadius(10)
-                                    }
+                                    Label("\(completedSets)/\(currentBlock.sets) sets", systemImage: "number.circle.fill")
+                                        .foregroundColor(.blue)
                                     
-                                    Button(action: isLastBlock ? { viewModel.endWorkout() } : nextBlock) {
-                                        Text(isLastBlock ? "End Workout" : (blockRestComplete ? "Next Block" : "Skip Rest"))
-                                            .frame(maxWidth: .infinity)
-                                            .padding()
-                                            .background(Color.blue)
-                                            .foregroundColor(.white)
-                                            .cornerRadius(10)
+                                    Spacer()
+                                    
+                                    Label(formatBlockTime(), systemImage: "clock.fill")
+                                        .foregroundColor(.secondary)
+                                }
+                                .font(.headline)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.05), radius: 8, y: 4)
+                    
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            if let currentBlock = currentBlock {
+                                // Exercises
+                                VStack(spacing: 16) {
+                                    ForEach(currentBlock.exerciseArray) { exercise in
+                                        ExerciseCard(exercise: exercise)
                                     }
                                 }
                                 .padding(.horizontal)
                             }
                         }
-                    } else if isWorkoutComplete {
-                        VStack(spacing: 20) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 60))
-                                .foregroundColor(.green)
-                            
-                            Text("Workout Complete! 💪")
-                                .font(.title)
-                                .bold()
-                            
-                            Button("Finish") {
-                                viewModel.endWorkout()
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                        .padding()
-                    }
-                }
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Minimize") {
-                            withAnimation(.spring()) {
-                                viewModel.minimizeWorkout()
-                            }
-                        }
-                        .foregroundColor(.white)
+                        .padding(.vertical)
                     }
                     
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("End", role: .destructive) {
-                            viewModel.endWorkout()
+                    // Bottom pinned action buttons
+                    if let currentBlock = currentBlock {
+                        VStack(spacing: 12) {
+                            HStack(spacing: 12) {
+                                // Complete Set button
+                                Button(action: {
+                                    if completedSets < currentBlock.sets {
+                                        completedSets += 1
+                                        if completedSets == currentBlock.sets {
+                                            completeCurrentBlock()
+                                        }
+                                    }
+                                }) {
+                                    Label("Complete Set", systemImage: "checkmark.circle.fill")
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(completedSets >= currentBlock.sets ? Color.gray : Color.blue)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(10)
+                                }
+                                .disabled(completedSets >= currentBlock.sets)
+                                
+                                // Skip Block button
+                                Button(action: {
+                                    completeCurrentBlock()
+                                    if !isLastBlock {
+                                        moveToNextBlock()
+                                    } else {
+                                        viewModel.endWorkout()
+                                        dismiss()
+                                    }
+                                }) {
+                                    Label("Skip", systemImage: "forward.fill")
+                                        .padding()
+                                        .background(Color.orange.opacity(0.1))
+                                        .foregroundColor(.orange)
+                                        .cornerRadius(10)
+                                }
+                            }
+                            
+                            if completedSets == currentBlock.sets {
+                                Button(action: {
+                                    if !isLastBlock && currentBlock.restSeconds > 0 {
+                                        showingBlockRestTimer = true
+                                    } else {
+                                        moveToNextBlock()
+                                    }
+                                }) {
+                                    Label(
+                                        isLastBlock ? "Finish Workout" : "Next Block",
+                                        systemImage: isLastBlock ? "flag.checkered.circle.fill" : "arrow.right.circle.fill"
+                                    )
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.green)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(10)
+                                }
+                            }
                         }
-                        .foregroundColor(.red)
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .shadow(color: Color.black.opacity(0.05), radius: 8, y: -4)
                     }
                 }
             }
-            .sheet(isPresented: $showingBlockRestTimer) {
-                if isLastBlock {
-                    BlockRestTimerView(
-                        seconds: $blockRestSeconds,
-                        isPresented: $showingBlockRestTimer,
-                        onComplete: {
-                            blockRestComplete = true
-                            dismiss()  // Dismiss the entire workout view
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(routine.routineDay)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        viewModel.endWorkout()
+                        dismiss()
+                    }) {
+                        Label("End Workout", systemImage: "xmark.circle.fill")
+                            .foregroundColor(.red)
+                    }
+                }
+                
+                if !isWorkoutComplete {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            viewModel.pauseWorkout()
+                            dismiss()
+                        }) {
+                            Label("Minimize", systemImage: "minus.circle.fill")
                         }
-                    )
-                } else {
-                    BlockRestTimerView(
-                        seconds: $blockRestSeconds,
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingBlockRestTimer) {
+            if let currentBlock = currentBlock {
+                let nextBlockIndex = viewModel.currentBlockIndex + 1
+                if nextBlockIndex < blocks.count {
+                    RestTimerView(
                         isPresented: $showingBlockRestTimer,
+                        seconds: currentBlock.restSeconds,
+                        nextBlock: blocks[nextBlockIndex],
                         onComplete: {
-                            blockRestComplete = true
-                            nextBlock()
+                            moveToNextBlock()
                         }
                     )
                 }
             }
         }
-    }
-    
-    private func circleColor(for block: Block) -> Color {
-        if completedBlocks.contains(block.blockID) {
-            return .green
-        } else if block.blockID == currentBlock?.blockID {
-            return .blue
-        } else {
-            return .gray.opacity(0.3)
+        .onAppear {
+            startBlockTimer()
+        }
+        .onDisappear {
+            blockTimer?.invalidate()
         }
     }
     
-    private func checkBlockCompletion(_ block: Block) {
-        let allExercisesComplete = block.exerciseArray.allSatisfy { exercise in
-            exercise.completedSets >= exercise.sets
-        }
-        
-        if allExercisesComplete {
-            completedBlocks.insert(block.blockID)
-            viewModel.updateLiveActivity()  // Update when block is completed
+    private func startBlockTimer() {
+        blockTimeElapsed = 0
+        blockTimer?.invalidate()
+        blockTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            blockTimeElapsed += 1
         }
     }
     
-    private func nextBlock() {
-        if viewModel.currentBlockIndex < blocks.count - 1 {
+    private func completeCurrentBlock() {
+        if let currentBlock = currentBlock {
+            completedBlocks.insert(currentBlock.blockID)
+        }
+    }
+    
+    private func moveToNextBlock() {
+        if !isLastBlock {
             viewModel.updateCurrentBlock(index: viewModel.currentBlockIndex + 1)
+            completedSets = 0
+            showingBlockRestTimer = false
+            startBlockTimer() // Reset and start timer for new block
+        } else {
+            viewModel.endWorkout()
+            dismiss()
         }
-    }
-}
-
-// New exercise card design
-struct ExerciseTrackingCard: View {
-    @ObservedObject var exercise: Exercise
-    let viewModel: RoutineViewModel
-    let isComplete: (Int16) -> Bool
-    let onComplete: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text(exercise.exerciseName)
-                    .font(.headline)
-                
-                Spacer()
-                
-                Text("\(exercise.completedSets)/\(exercise.sets)")
-                    .font(.headline)
-                    + Text(" sets")
-                    .foregroundColor(.gray)
-            }
-            
-            HStack {
-                Text("\(exercise.repsPerSet) reps • \(Int(exercise.weight))kg")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                
-                Spacer()
-                
-                Text("\(Int(exercise.repsPerSet * (exercise.sets - exercise.completedSets))) reps left")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-            
-            Button(action: {
-                exercise.completedSets += 1
-                if isComplete(exercise.completedSets) {
-                    onComplete()
-                }
-                viewModel.updateLiveActivity()
-            }) {
-                Text("Complete set")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-            }
-            .disabled(exercise.completedSets >= exercise.sets)
-        }
-        .padding()
-        .background(Color(white: 0.1))
-        .cornerRadius(16)
     }
 }
 
 struct RestTimerView: View {
-    @Binding var seconds: Int
     @Binding var isPresented: Bool
-    @State private var timeRemaining: Int
+    let seconds: Int16
+    let onComplete: () -> Void
+    @State private var timeRemaining: Int16
     @State private var timer: Timer?
+    let nextBlock: Block
     
-    init(seconds: Binding<Int>, isPresented: Binding<Bool>) {
-        self._seconds = seconds
+    init(isPresented: Binding<Bool>, seconds: Int16, nextBlock: Block, onComplete: @escaping () -> Void) {
         self._isPresented = isPresented
-        self._timeRemaining = State(initialValue: seconds.wrappedValue)
+        self.seconds = seconds
+        self.nextBlock = nextBlock
+        self.onComplete = onComplete
+        self._timeRemaining = State(initialValue: seconds)
     }
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Text(timeString(from: timeRemaining))
-                    .font(.system(size: 60, design: .monospaced))
-                    .bold()
+            ZStack {
+                Color(.systemBackground)
+                    .ignoresSafeArea()
                 
-                HStack(spacing: 20) {
-                    Button("-30s") {
-                        timeRemaining = max(0, timeRemaining - 30)
-                        seconds = timeRemaining
+                VStack(spacing: 0) {
+                    ScrollView {
+                        VStack(spacing: 32) {
+                            Text("Rest Time")
+                                .font(.title)
+                                .bold()
+                            
+                            VStack(spacing: 8) {
+                                Text(formatTime(seconds: timeRemaining))
+                                    .font(.system(size: 64, weight: .bold, design: .rounded))
+                                    .monospacedDigit()
+                                
+                                Text("remaining")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            // Next block preview
+                            VStack(spacing: 16) {
+                                Text("Get Ready For")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                                
+                                VStack(spacing: 8) {
+                                    HStack {
+                                        Text(nextBlock.blockName)
+                                            .font(.title3)
+                                            .bold()
+                                        
+                                        Text("•")
+                                            .foregroundColor(.secondary)
+                                        
+                                        Text("\(nextBlock.sets) sets")
+                                            .foregroundColor(.blue)
+                                    }
+                                    
+                                    VStack(spacing: 4) {
+                                        ForEach(nextBlock.exerciseArray) { exercise in
+                                            HStack {
+                                                Text(exercise.exerciseName)
+                                                Spacer()
+                                                Text("\(exercise.repsPerSet) reps @ \(String(format: "%.1f", exercise.weight))kg")
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            .font(.subheadline)
+                                        }
+                                    }
+                                    .padding()
+                                    .background(Color(.secondarySystemBackground))
+                                    .cornerRadius(10)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 24)
                     }
-                    .buttonStyle(.bordered)
                     
-                    Button(timer == nil ? "Start" : "Pause") {
-                        toggleTimer()
+                    // Fixed bottom button
+                    VStack {
+                        Button(action: {
+                            timer?.invalidate()
+                            isPresented = false
+                            onComplete()
+                        }) {
+                            Label("Skip Rest", systemImage: "forward.fill")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
-                    
-                    Button("+30s") {
-                        timeRemaining += 30
-                        seconds = timeRemaining
-                    }
-                    .buttonStyle(.bordered)
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.05), radius: 8, y: -4)
                 }
             }
-            .padding()
-            .navigationTitle("Rest Timer")
-            .toolbar {
-                Button("Done") {
-                    timer?.invalidate()
-                    timer = nil
-                    isPresented = false
-                }
-            }
+            .navigationBarTitleDisplayMode(.inline)
         }
-        .onDisappear {
-            timer?.invalidate()
-            timer = nil
-        }
-    }
-    
-    private func toggleTimer() {
-        if timer == nil {
+        .onAppear {
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
                 if timeRemaining > 0 {
                     timeRemaining -= 1
                 } else {
                     timer?.invalidate()
-                    timer = nil
-                }
-            }
-        } else {
-            timer?.invalidate()
-            timer = nil
-        }
-    }
-    
-    private func timeString(from seconds: Int) -> String {
-        let minutes = seconds / 60
-        let remainingSeconds = seconds % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
-    }
-}
-
-struct BlockRestTimerView: View {
-    @Binding var seconds: Int
-    @Binding var isPresented: Bool
-    let onComplete: () -> Void
-    
-    @State private var timeRemaining: Int
-    @State private var timer: Timer?
-    
-    init(seconds: Binding<Int>, isPresented: Binding<Bool>, onComplete: @escaping () -> Void) {
-        self._seconds = seconds
-        self._isPresented = isPresented
-        self.onComplete = onComplete
-        self._timeRemaining = State(initialValue: seconds.wrappedValue)
-    }
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Text(timeString(from: timeRemaining))
-                    .font(.system(size: 60, design: .monospaced))
-                    .bold()
-                
-                HStack(spacing: 20) {
-                    Button("-30s") {
-                        timeRemaining = max(0, timeRemaining - 30)
-                        seconds = timeRemaining
-                    }
-                    .buttonStyle(.bordered)
-                    
-                    Button(timer == nil ? "Start" : "Pause") {
-                        toggleTimer()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    
-                    Button("+30s") {
-                        timeRemaining += 30
-                        seconds = timeRemaining
-                    }
-                    .buttonStyle(.bordered)
-                }
-                
-                if timeRemaining == 0 {
-                    Button("Continue to Next Block") {
-                        onComplete()
-                        isPresented = false
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-            }
-            .padding()
-            .navigationTitle("Block Rest Timer")
-            .toolbar {
-                Button("Skip") {
-                    timer?.invalidate()
-                    timer = nil
-                    onComplete()
                     isPresented = false
+                    onComplete()
                 }
             }
         }
         .onDisappear {
             timer?.invalidate()
-            timer = nil
         }
     }
     
-    private func toggleTimer() {
-        if timer == nil {
-            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                if timeRemaining > 0 {
-                    timeRemaining -= 1
-                    if timeRemaining == 0 {
-                        timer?.invalidate()
-                        timer = nil
-                    }
-                }
-            }
-        } else {
-            timer?.invalidate()
-            timer = nil
-        }
-    }
-    
-    private func timeString(from seconds: Int) -> String {
+    private func formatTime(seconds: Int16) -> String {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
     }
 }
 
-// New segmented progress bar component
-struct SegmentedProgressBar: View {
-    let totalSegments: Int
-    let currentSegment: Int
-    let completedSegments: [Int]
+struct ExerciseCard: View {
+    let exercise: Exercise
     
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<totalSegments, id: \.self) { index in
-                Capsule()
-                    .fill(segmentColor(for: index))
-                    .frame(height: 8)
+        VStack(alignment: .leading, spacing: 12) {
+            Text(exercise.exerciseName)
+                .font(.headline)
+            
+            HStack(spacing: 16) {
+                Label("\(exercise.repsPerSet) reps", systemImage: "repeat.circle.fill")
+                Spacer()
+                Label("\(String(format: "%.1f", exercise.weight))kg", systemImage: "scalemass.fill")
+            }
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            
+            if let notes = exercise.notes, !notes.isEmpty {
+                Text(notes)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
             }
         }
-        .frame(height: 8)
-    }
-    
-    private func segmentColor(for index: Int) -> Color {
-        if completedSegments.contains(index) {
-            return .green
-        } else if index == currentSegment {
-            return .blue
-        } else {
-            return Color.gray.opacity(0.3)
-        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
     }
 }
 
 #Preview {
+    let context = PersistenceController.shared.container.viewContext
+    let viewModel = RoutineViewModel(context: context)
+    
+    // Create a sample routine
+    let routine = Routine(context: context)
+    routine.id = UUID()
+    routine.day = "Monday"
+    routine.targetMuscleGroups = ["Chest", "Triceps"] as NSArray
+    routine.notes = "Focus on form and controlled negatives"
+    
+    // Create Chest Block
+    let chestBlock = Block(context: context)
+    chestBlock.id = UUID()
+    chestBlock.name = "Chest"
+    chestBlock.sets = 4
+    chestBlock.restSeconds = 180 // 3 minutes rest after compound chest exercises
+    chestBlock.routine = routine
+    
+    // Chest exercises
+    let benchPress = Exercise(context: context)
+    benchPress.id = UUID()
+    benchPress.name = "Bench Press"
+    benchPress.repsPerSet = 8
+    benchPress.weight = 80.0
+    benchPress.block = chestBlock
+    
+    let inclineDumbbell = Exercise(context: context)
+    inclineDumbbell.id = UUID()
+    inclineDumbbell.name = "Incline Dumbbell Press"
+    inclineDumbbell.repsPerSet = 10
+    inclineDumbbell.weight = 30.0
+    inclineDumbbell.block = chestBlock
+    
+    let cableFly = Exercise(context: context)
+    cableFly.id = UUID()
+    cableFly.name = "Cable Fly"
+    cableFly.repsPerSet = 12
+    cableFly.weight = 15.0
+    cableFly.block = chestBlock
+    
+    // Create Triceps Block
+    let tricepsBlock = Block(context: context)
+    tricepsBlock.id = UUID()
+    tricepsBlock.name = "Triceps"
+    tricepsBlock.sets = 3
+    tricepsBlock.restSeconds = 120 // 2 minutes rest after triceps exercises
+    tricepsBlock.routine = routine
+    
+    // Triceps exercises
+    let pushdowns = Exercise(context: context)
+    pushdowns.id = UUID()
+    pushdowns.name = "Rope Pushdowns"
+    pushdowns.repsPerSet = 12
+    pushdowns.weight = 25.0
+    pushdowns.block = tricepsBlock
+    
+    let skullcrushers = Exercise(context: context)
+    skullcrushers.id = UUID()
+    skullcrushers.name = "EZ Bar Skullcrushers"
+    skullcrushers.repsPerSet = 10
+    skullcrushers.weight = 20.0
+    skullcrushers.block = tricepsBlock
+    
+    let diamondPushups = Exercise(context: context)
+    diamondPushups.id = UUID()
+    diamondPushups.name = "Diamond Push-ups"
+    diamondPushups.repsPerSet = 15
+    diamondPushups.weight = 0.0
+    diamondPushups.block = tricepsBlock
+    
+    // Create Finisher Block
+    let finisherBlock = Block(context: context)
+    finisherBlock.id = UUID()
+    finisherBlock.name = "Finisher"
+    finisherBlock.sets = 2
+    finisherBlock.restSeconds = 60 // 1 minute rest for the finisher
+    finisherBlock.routine = routine
+    
+    // Finisher exercises
+    let pushupDropset = Exercise(context: context)
+    pushupDropset.id = UUID()
+    pushupDropset.name = "Push-up Dropset"
+    pushupDropset.repsPerSet = 20
+    pushupDropset.weight = 0.0
+    pushupDropset.notes = "Do as many reps as possible until failure"
+    pushupDropset.block = finisherBlock
+    
     do {
-        let context = PersistenceController.shared.container.viewContext
-        let viewModel = RoutineViewModel(context: context)
-        
-        // Create a sample routine
-        let routine = Routine(context: context)
-        routine.id = UUID()
-        routine.day = "Monday"
-        
-        // Create blocks
-        let chestBlock = Block(context: context)
-        chestBlock.id = UUID()
-        chestBlock.name = "Chest"
-        chestBlock.routine = routine
-        
-        let shoulderBlock = Block(context: context)
-        shoulderBlock.id = UUID()
-        shoulderBlock.name = "Shoulders"
-        shoulderBlock.routine = routine
-        
-        // Create exercises
-        let benchPress = Exercise(context: context)
-        benchPress.id = UUID()
-        benchPress.name = "Bench Press"
-        benchPress.sets = 4
-        benchPress.repsPerSet = 8
-        benchPress.weight = 80.0
-        benchPress.block = chestBlock
-        
-        let shoulderPress = Exercise(context: context)
-        shoulderPress.id = UUID()
-        shoulderPress.name = "Shoulder Press"
-        shoulderPress.sets = 3
-        shoulderPress.repsPerSet = 12
-        shoulderPress.weight = 20.0
-        shoulderPress.block = shoulderBlock
-        
         try context.save()
-        
         return WorkoutTrackingView(routine: routine, viewModel: viewModel)
             .environment(\.managedObjectContext, context)
     } catch {

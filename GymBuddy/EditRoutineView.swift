@@ -34,23 +34,14 @@ struct EditRoutineView: View {
                 }
                 
                 Section(header: Text("Blocks")) {
-                    List {
-                        ForEach(blocks, id: \.blockID) { block in
-                            VStack(alignment: .leading) {
-                                Text(block.blockName)
-                                    .font(.headline)
-                                ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
-                                    Text("• \(exercise.exerciseName): \(exercise.sets)×\(exercise.repsPerSet) @ \(exercise.weight)kg")
-                                        .font(.subheadline)
-                                }
-                            }
-                        }
-                        .onDelete { indexSet in
-                            blocks.remove(atOffsets: indexSet)
-                        }
-                        .onMove { from, to in
-                            blocks.move(fromOffsets: from, toOffset: to)
-                        }
+                    ForEach(blocks, id: \.blockID) { block in
+                        BlockDetailView(block: block)
+                    }
+                    .onDelete { indexSet in
+                        blocks.remove(atOffsets: indexSet)
+                    }
+                    .onMove { from, to in
+                        blocks.move(fromOffsets: from, toOffset: to)
                     }
                     
                     Button("Add Block") {
@@ -59,7 +50,7 @@ struct EditRoutineView: View {
                 }
             }
             .navigationTitle("Edit Routine")
-            .environment(\.editMode, $editMode) // Set edit mode for the view
+            .environment(\.editMode, $editMode)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -90,5 +81,28 @@ struct EditRoutineView: View {
             notes: notes.isEmpty ? nil : notes
         )
         dismiss()
+    }
+}
+
+struct BlockDetailView: View {
+    let block: Block
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(block.blockName)
+                .font(.headline)
+            Text("\(block.sets) sets")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            if block.restSeconds > 0 {
+                Text("Rest: \(block.restSeconds) seconds")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
+                Text("• \(exercise.exerciseName): \(exercise.repsPerSet) reps @ \(exercise.weight)kg")
+                    .font(.subheadline)
+            }
+        }
     }
 } 
