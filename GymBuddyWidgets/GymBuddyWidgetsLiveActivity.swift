@@ -15,72 +15,49 @@ struct WorkoutLiveActivity: Widget {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
             // Lock screen/banner UI
             VStack(spacing: 12) {
-                // Header
+                // Header with routine name and timer
                 HStack {
-                    Image(systemName: "dumbbell.fill")
-                        .font(.title3)
-                    
                     Text(context.state.routineName)
                         .font(.headline)
                     
                     Spacer()
                     
-                    // Elapsed time
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.caption)
-                        Text(timerInterval: context.state.startTime...Date.now, countsDown: false)
-                            .font(.caption.monospacedDigit())
-                            .frame(width: 50)
-                    }
+                    Text(timerInterval: context.state.startTime...Date.now, countsDown: false)
+                        .font(.caption.monospacedDigit())
+                        .frame(width: 50)
                 }
+                
+                // Overall progress bar
+                ProgressView(value: Double(context.state.blockProgress), total: Double(context.state.totalBlocks))
+                    .tint(.blue)
                 
                 // Current block info
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Current Block")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Text(context.state.currentBlock)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                    }
-                    
-                    Spacer()
-                    
-                    // Block progress
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("Block")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Text("\(context.state.blockProgress)/\(context.state.totalBlocks)")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                    }
-                }
-                
-                // Progress bars
-                VStack(spacing: 8) {
-                    // Block progress
-                    ProgressView(value: Double(context.state.blockProgress), total: Double(context.state.totalBlocks))
-                        .tint(.blue)
-                    
-                    // Exercise progress
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Exercises")
-                            .font(.caption)
+                        Text(context.state.currentBlock)
+                            .font(.title3)
+                            .fontWeight(.bold)
                         
                         Spacer()
                         
-                        Text("\(context.state.exerciseProgress)/\(context.state.totalExercises)")
-                            .font(.caption)
+                        Text("\(context.state.currentSet)/\(context.state.totalSets) sets")
+                            .font(.headline)
+                            .foregroundColor(.blue)
                     }
-                    .foregroundColor(.secondary)
                     
-                    ProgressView(value: Double(context.state.exerciseProgress), total: Double(context.state.totalExercises))
-                        .tint(.green)
+                    // Exercise list
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(context.state.exercises, id: \.name) { exercise in
+                            HStack {
+                                Text(exercise.name)
+                                    .font(.subheadline)
+                                Spacer()
+                                Text("\(exercise.reps) × \(String(format: "%.1f", exercise.weight))kg")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
                 }
             }
             .padding()
@@ -89,37 +66,57 @@ struct WorkoutLiveActivity: Widget {
 
         } dynamicIsland: { context in
             DynamicIsland {
-                // Expanded UI goes here
+                // Expanded UI
                 DynamicIslandExpandedRegion(.leading) {
-                    VStack(alignment: .leading) {
-                        Text(context.state.routineName)
-                            .font(.headline)
-                        Text(context.state.currentBlock)
-                            .font(.subheadline)
-                    }
-                }
-                DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing) {
-                        Text("\(context.state.blockProgress)/\(context.state.totalBlocks)")
-                        ProgressView(value: Double(context.state.exerciseProgress),
-                                   total: Double(context.state.totalExercises))
-                            .frame(width: 50)
-                    }
-                }
-                DynamicIslandExpandedRegion(.bottom) {
                     HStack {
-                        Image(systemName: "clock")
-                        Text(context.state.startTime, style: .timer)
+                        Image(systemName: "timer")
+                        Text("\(context.state.blockTimeElapsed / 60):\(String(format: "%02d", context.state.blockTimeElapsed % 60))")
+                            .font(.system(.body, design: .monospaced))
                     }
+                }
+                
+                DynamicIslandExpandedRegion(.trailing) {
+                    Text("\(context.state.currentSet)/\(context.state.totalSets)")
+                        .font(.headline)
+                }
+                
+                DynamicIslandExpandedRegion(.center) {
+                    Text(context.state.currentBlock)
+                        .font(.headline)
+                        .lineLimit(1)
+                }
+                
+                DynamicIslandExpandedRegion(.bottom) {
+                    // Overall progress bar
+                    ProgressView(value: Double(context.state.blockProgress), total: Double(context.state.totalBlocks))
+                        .tint(.blue)
                 }
             } compactLeading: {
-                Text("\(context.state.blockProgress)/\(context.state.totalBlocks)")
+                // Small circular progress with set counter
+                ZStack {
+                    Circle()
+                        .trim(from: 0, to: CGFloat(context.state.blockProgress) / CGFloat(context.state.totalBlocks))
+                        .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: 20, height: 20)
+                    
+                    Text("\(context.state.currentSet)")
+                        .font(.system(size: 12, weight: .medium))
+                }
             } compactTrailing: {
-                ProgressView(value: Double(context.state.exerciseProgress),
-                           total: Double(context.state.totalExercises))
-                    .frame(width: 30)
+                Text("\(context.state.totalSets)")
+                    .font(.system(size: 12, weight: .medium))
             } minimal: {
-                Text("\(context.state.blockProgress)")
+                ZStack {
+                    Circle()
+                        .trim(from: 0, to: CGFloat(context.state.blockProgress) / CGFloat(context.state.totalBlocks))
+                        .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: 20, height: 20)
+                    
+                    Text("\(context.state.currentSet)")
+                        .font(.system(size: 12, weight: .medium))
+                }
             }
         }
     }
@@ -133,9 +130,16 @@ struct WorkoutLiveActivity: Widget {
         currentBlock: "Chest",
         blockProgress: 1,
         totalBlocks: 3,
+        currentSet: 2,
+        totalSets: 4,
         exerciseProgress: 2,
         totalExercises: 4,
-        startTime: .now
+        startTime: .now,
+        exercises: [
+            .init(name: "Bench Press", reps: 8, weight: 80.0),
+            .init(name: "Incline Press", reps: 10, weight: 60.0)
+        ],
+        blockTimeElapsed: 180
     )
 }
 
@@ -147,9 +151,16 @@ struct WorkoutLiveActivity: Widget {
         currentBlock: "Chest",
         blockProgress: 1,
         totalBlocks: 3,
+        currentSet: 2,
+        totalSets: 4,
         exerciseProgress: 2,
         totalExercises: 4,
-        startTime: .now
+        startTime: .now,
+        exercises: [
+            .init(name: "Bench Press", reps: 8, weight: 80.0),
+            .init(name: "Incline Press", reps: 10, weight: 60.0)
+        ],
+        blockTimeElapsed: 180
     )
 }
 
@@ -161,13 +172,19 @@ struct WorkoutLiveActivity: Widget {
         currentBlock: "Chest",
         blockProgress: 1,
         totalBlocks: 3,
+        currentSet: 2,
+        totalSets: 4,
         exerciseProgress: 2,
         totalExercises: 4,
-        startTime: .now
+        startTime: .now,
+        exercises: [
+            .init(name: "Bench Press", reps: 8, weight: 80.0),
+            .init(name: "Incline Press", reps: 10, weight: 60.0)
+        ],
+        blockTimeElapsed: 180
     )
 }
 
-// Add this preview for the lock screen
 #Preview("Lock Screen Live Activity", as: .content, using: WorkoutActivityAttributes(routineName: "Monday", totalBlocks: 3)) {
     WorkoutLiveActivity()
 } contentStates: {
@@ -176,23 +193,15 @@ struct WorkoutLiveActivity: Widget {
         currentBlock: "Chest",
         blockProgress: 1,
         totalBlocks: 3,
+        currentSet: 2,
+        totalSets: 4,
         exerciseProgress: 2,
         totalExercises: 4,
-        startTime: .now
-    )
-}
-
-// Replace the notification preview with a different lock screen state
-#Preview("Lock Screen (Progress)", as: .content, using: WorkoutActivityAttributes(routineName: "Monday", totalBlocks: 3)) {
-    WorkoutLiveActivity()
-} contentStates: {
-    WorkoutActivityAttributes.ContentState(
-        routineName: "Monday",
-        currentBlock: "Shoulders",
-        blockProgress: 2,
-        totalBlocks: 3,
-        exerciseProgress: 1,
-        totalExercises: 3,
-        startTime: .now.addingTimeInterval(-1200) // 20 minutes ago
+        startTime: .now,
+        exercises: [
+            .init(name: "Bench Press", reps: 8, weight: 80.0),
+            .init(name: "Incline Press", reps: 10, weight: 60.0)
+        ],
+        blockTimeElapsed: 180
     )
 }

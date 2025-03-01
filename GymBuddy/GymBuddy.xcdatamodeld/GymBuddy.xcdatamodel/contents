@@ -26,6 +26,7 @@
     </entity>
     <entity name="CompletedWorkout" representedClassName="GymBuddy.CompletedWorkout" syncable="YES">
         <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="endDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="routineName" attributeType="String"/>
         <attribute name="totalTime" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
@@ -37,6 +38,8 @@
         <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="isSkipped" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="sets" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="startTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="endTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="exercises" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CompletedExercise" inverseName="block" inverseEntity="CompletedExercise"/>
         <relationship name="workout" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CompletedWorkout" inverseName="blocks" inverseEntity="CompletedWorkout"/>
     </entity>

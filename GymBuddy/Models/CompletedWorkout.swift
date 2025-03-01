@@ -4,6 +4,7 @@ import CoreData
 public class CompletedWorkout: NSManagedObject, Identifiable {
     @NSManaged public var id: UUID?
     @NSManaged public var date: Date?
+    @NSManaged public var endDate: Date?
     @NSManaged public var routineName: String?
     @NSManaged public var totalTime: Double
     @NSManaged public var blocks: NSSet?
@@ -22,9 +23,10 @@ public class CompletedWorkout: NSManagedObject, Identifiable {
     }
     
     public var formattedTotalTime: String {
-        let hours = Int(totalTime) / 3600
-        let minutes = Int(totalTime) / 60 % 60
-        let seconds = Int(totalTime) % 60
+        let totalSeconds = endDate?.timeIntervalSince(date ?? Date()) ?? totalTime
+        let hours = Int(totalSeconds) / 3600
+        let minutes = Int(totalSeconds) / 60 % 60
+        let seconds = Int(totalSeconds) % 60
         
         if hours > 0 {
             return String(format: "%d:%02d:%02d", hours, minutes, seconds)
