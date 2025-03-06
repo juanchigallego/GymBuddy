@@ -5,6 +5,7 @@ struct EditRoutineView: View {
     @ObservedObject var viewModel: RoutineViewModel
     let routine: Routine
     @Environment(\.dismiss) var dismiss
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var editMode = EditMode.active
     
     @State private var day: String
@@ -104,7 +105,7 @@ struct EditRoutineView: View {
                 }
             }
             .sheet(isPresented: $showingAddBlock) {
-                AddBlockView(blocks: $blocks)
+                AddBlockView(blocks: $blocks, viewContext: viewContext)
             }
             .sheet(isPresented: $showingEditExercises) {
                 if let block = selectedBlock {
@@ -132,6 +133,7 @@ struct EditRoutineView: View {
 struct EditExercisesView: View {
     let block: Block
     @Environment(\.dismiss) var dismiss
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var exercises: [Exercise]
     @State private var showingAddExercise = false
     
@@ -202,7 +204,7 @@ struct EditExercisesView: View {
             }
         }
         .sheet(isPresented: $showingAddExercise) {
-            AddExerciseView(exercises: $exercises)
+            AddExerciseView(exercises: $exercises, viewContext: viewContext)
         }
     }
     

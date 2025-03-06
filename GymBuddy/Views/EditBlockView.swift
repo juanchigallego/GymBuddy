@@ -5,6 +5,7 @@ struct EditBlockView: View {
     @ObservedObject var viewModel: RoutineViewModel
     let block: Block
     @Environment(\.dismiss) var dismiss
+    @Environment(\.managedObjectContext) private var viewContext
     
     @State private var blockName: String
     @State private var exercises: [Exercise]
@@ -39,15 +40,23 @@ struct EditBlockView: View {
                 Section("Exercises") {
                     ForEach(exercises, id: \.id) { exercise in
                         VStack(alignment: .leading) {
-                            Text(exercise.name ?? "")
+                            Text(exercise.exerciseName)
                                 .font(.headline)
-                            Text("\(exercise.repsPerSet) reps @ \(exercise.weight)kg")
+                            Text("\(exercise.repsPerSet) reps @ \(String(format: "%.1f", exercise.weight))kg")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+                            if !exercise.exerciseTargetMuscles.isEmpty {
+                                Text(exercise.exerciseTargetMuscles.joined(separator: ", "))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                     .onDelete { indexSet in
                         exercises.remove(atOffsets: indexSet)
+                    }
+                    .onMove { from, to in
+                        exercises.move(fromOffsets: from, toOffset: to)
                     }
                     
                     Button("Add Exercise") {
@@ -60,13 +69,14 @@ struct EditBlockView: View {
                         Text("This block consists of \(numberOfSets) sets of:")
                             .font(.subheadline)
                         ForEach(exercises, id: \.id) { exercise in
-                            Text("• \(exercise.name ?? ""): \(exercise.repsPerSet) reps @ \(String(format: "%.1f", exercise.weight))kg")
+                            Text("• \(exercise.exerciseName): \(exercise.repsPerSet) reps @ \(String(format: "%.1f", exercise.weight))kg")
                                 .font(.subheadline)
                         }
                     }
                 }
             }
             .navigationTitle("Edit Block")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -79,21 +89,31 @@ struct EditBlockView: View {
                     }
                     .disabled(blockName.isEmpty || exercises.isEmpty)
                 }
+                
+                ToolbarItem(placement: .primaryAction) {
+                    EditButton()
+                }
             }
             .sheet(isPresented: $showingAddExercise) {
-                AddExerciseView(exercises: $exercises)
+                AddExerciseView(exercises: $exercises, viewContext: viewContext)
             }
         }
     }
     
     private func saveBlock() {
-        viewModel.updateBlock(
-            block,
-            name: blockName,
-            exercises: exercises,
-            sets: numberOfSets,
-            restSeconds: restSeconds
-        )
+        // Update block properties
+        block.name = blockName
+        block.sets = numberOfSets
+        block.restSeconds = restSeconds
+        
+        // Update exercises
+        block.exercises = NSSet(array: exercises)
+        
+        // Save context
+        try? viewContext.save()
+        
+        // Update UI
+        viewModel.fetchRoutines()
         dismiss()
     }
 }

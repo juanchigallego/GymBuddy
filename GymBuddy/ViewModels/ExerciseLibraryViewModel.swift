@@ -35,34 +35,57 @@ class ExerciseLibraryViewModel: ObservableObject {
     
     func fetchExercises() {
         let request = Exercise.fetchRequest()
-        request.predicate = NSPredicate(format: "block == nil")
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Exercise.name, ascending: true)]
         
         do {
-            exercises = try viewContext.fetch(request)
+            // Fetch all exercises
+            let allExercises = try viewContext.fetch(request)
+            
+            // Create a dictionary to store unique exercises by name
+            var uniqueExercises: [String: Exercise] = [:]
+            
+            // For each exercise, keep the one that's not in a block (library version)
+            // or the first one we find if all instances are in blocks
+            for exercise in allExercises {
+                let name = exercise.exerciseName
+                if let existing = uniqueExercises[name] {
+                    // If we already have this exercise, prefer the one not in a block
+                    if existing.block != nil && exercise.block == nil {
+                        uniqueExercises[name] = exercise
+                    }
+                } else {
+                    uniqueExercises[name] = exercise
+                }
+            }
+            
+            // Convert back to array
+            exercises = Array(uniqueExercises.values)
+                .sorted { $0.exerciseName < $1.exerciseName }
         } catch {
             print("Error fetching exercises: \(error)")
         }
     }
     
-    func addExercise(name: String, targetMuscles: [Muscle], repsPerSet: Int16 = 0, weight: Double = 0.0, notes: String = "") {
+    func addExercise(name: String, targetMuscles: [Muscle], notes: String = "") {
         let newExercise = Exercise(context: viewContext)
         newExercise.id = UUID()
         newExercise.name = name
-        newExercise.exerciseTargetMuscles = targetMuscles.map { $0.rawValue }
-        newExercise.repsPerSet = repsPerSet
-        newExercise.weight = weight
-        newExercise.notes = notes
+        newExercise.targetMuscles = targetMuscles.map { $0.rawValue } as NSArray
+        newExercise.repsPerSet = 0
+        newExercise.weight = 0.0
+        newExercise.notes = notes.isEmpty ? nil : notes
         
-        saveContext()
-        fetchExercises()
+        do {
+            try viewContext.save()
+            fetchExercises()
+        } catch {
+            print("Error saving exercise: \(error)")
+        }
     }
     
-    func updateExercise(_ exercise: Exercise, name: String, targetMuscles: [Muscle], repsPerSet: Int16, weight: Double, notes: String) {
+    func updateExercise(_ exercise: Exercise, name: String, targetMuscles: [Muscle], notes: String) {
         exercise.name = name
         exercise.exerciseTargetMuscles = targetMuscles.map { $0.rawValue }
-        exercise.repsPerSet = repsPerSet
-        exercise.weight = weight
         exercise.notes = notes
         
         saveContext()

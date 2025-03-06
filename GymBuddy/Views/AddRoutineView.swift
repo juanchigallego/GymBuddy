@@ -4,6 +4,7 @@ import CoreData
 struct AddRoutineView: View {
     @ObservedObject var viewModel: RoutineViewModel
     @Environment(\.dismiss) var dismiss
+    @Environment(\.managedObjectContext) private var viewContext
     
     @State private var day = ""
     @State private var muscleGroups = ""
@@ -45,7 +46,7 @@ struct AddRoutineView: View {
                 }
             }
             .sheet(isPresented: $showingAddBlock) {
-                AddBlockView(blocks: $blocks)
+                AddBlockView(blocks: $blocks, viewContext: viewContext)
             }
         }
     }
@@ -80,12 +81,18 @@ struct BlockRowView: View {
 struct AddBlockView: View {
     @Binding var blocks: [Block]
     @Environment(\.dismiss) var dismiss
+    let viewContext: NSManagedObjectContext
     
     @State private var blockName = ""
     @State private var numberOfSets: Int16 = 3
     @State private var exercises: [Exercise] = []
     @State private var showingAddExercise = false
     @State private var restSeconds: Int16 = 0
+    
+    init(blocks: Binding<[Block]>, viewContext: NSManagedObjectContext) {
+        self._blocks = blocks
+        self.viewContext = viewContext
+    }
     
     var body: some View {
         NavigationStack {
@@ -100,7 +107,21 @@ struct AddBlockView: View {
                 
                 Section("Exercises") {
                     ForEach(exercises, id: \.exerciseID) { exercise in
-                        Text("\(exercise.exerciseName): \(exercise.repsPerSet) reps @ \(exercise.weight)kg")
+                        VStack(alignment: .leading) {
+                            Text(exercise.exerciseName)
+                                .font(.headline)
+                            Text("\(exercise.repsPerSet) reps @ \(String(format: "%.1f", exercise.weight))kg")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            if !exercise.exerciseTargetMuscles.isEmpty {
+                                Text(exercise.exerciseTargetMuscles.joined(separator: ", "))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .onDelete { indexSet in
+                        exercises.remove(atOffsets: indexSet)
                     }
                     
                     Button("Add Exercise") {
@@ -123,27 +144,21 @@ struct AddBlockView: View {
                 }
             }
             .sheet(isPresented: $showingAddExercise) {
-                AddExerciseView(exercises: $exercises)
+                AddExerciseView(exercises: $exercises, viewContext: viewContext)
             }
         }
     }
     
     private func saveBlock() {
-        let context = PersistenceController.shared.container.viewContext
-        let newBlock = Block(context: context)
+        let newBlock = Block(context: viewContext)
         newBlock.id = UUID()
         newBlock.name = blockName
         newBlock.sets = numberOfSets
         newBlock.restSeconds = restSeconds
         
-        for exercise in exercises {
-            let newExercise = Exercise(context: context)
-            newExercise.id = UUID()
-            newExercise.name = exercise.exerciseName
-            newExercise.repsPerSet = exercise.repsPerSet
-            newExercise.weight = exercise.weight
-            newExercise.block = newBlock
-        }
+        // Add exercises to the block
+        let exerciseSet = NSSet(array: exercises)
+        newBlock.exercises = exerciseSet
         
         blocks.append(newBlock)
         dismiss()
@@ -153,25 +168,88 @@ struct AddBlockView: View {
 struct AddExerciseView: View {
     @Binding var exercises: [Exercise]
     @Environment(\.dismiss) var dismiss
-    
-    @State private var name = ""
+    @Environment(\.managedObjectContext) private var viewContext
+    @StateObject private var libraryViewModel: ExerciseLibraryViewModel
+    @State private var showingNewExerciseForm = false
+    @State private var selectedExercise: Exercise?
     @State private var reps: Int16 = 8
     @State private var weight: Double = 0.0
-    @State private var notes = ""
+    
+    init(exercises: Binding<[Exercise]>, viewContext: NSManagedObjectContext) {
+        self._exercises = exercises
+        self._libraryViewModel = StateObject(wrappedValue: ExerciseLibraryViewModel(viewContext: viewContext))
+    }
     
     var body: some View {
         NavigationStack {
-            Form {
-                TextField("Exercise Name", text: $name)
-                Stepper("Reps: \(reps)", value: $reps, in: 1...30)
-                HStack {
-                    Text("Weight:")
-                    TextField("Weight (kg)", value: $weight, format: .number)
-                        .keyboardType(.decimalPad)
+            List {
+                Section {
+                    if let exercise = selectedExercise {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(exercise.exerciseName)
+                                .font(.headline)
+                            
+                            if !exercise.exerciseTargetMuscles.isEmpty {
+                                Text("Target Muscles: \(exercise.exerciseTargetMuscles.joined(separator: ", "))")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Stepper("Reps: \(reps)", value: $reps, in: 1...30)
+                            
+                            HStack {
+                                Text("Weight:")
+                                TextField("Weight (kg)", value: $weight, format: .number)
+                                    .keyboardType(.decimalPad)
+                                Text("kg")
+                            }
+                        }
+                    } else {
+                        Text("Select an exercise below")
+                            .foregroundColor(.secondary)
+                    }
                 }
-                TextField("Notes (optional)", text: $notes)
+                
+                Section(header: Text("Exercise Library")) {
+                    ForEach(libraryViewModel.filteredExercises) { exercise in
+                        Button {
+                            selectedExercise = exercise
+                            // Set initial weight to the last used weight if available
+                            weight = exercise.weight
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(exercise.exerciseName)
+                                        .foregroundColor(.primary)
+                                    if !exercise.exerciseTargetMuscles.isEmpty {
+                                        Text(exercise.exerciseTargetMuscles.joined(separator: ", "))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                if selectedExercise?.id == exercise.id {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                    }
+                    
+                    Button("Create New Exercise") {
+                        showingNewExerciseForm = true
+                    }
+                }
+                
+                if !libraryViewModel.searchText.isEmpty && libraryViewModel.filteredExercises.isEmpty {
+                    Text("No matching exercises found")
+                        .foregroundColor(.secondary)
+                }
             }
-            .navigationTitle("New Exercise")
+            .searchable(text: $libraryViewModel.searchText, prompt: "Search exercises")
+            .navigationTitle("Add Exercise")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -182,20 +260,37 @@ struct AddExerciseView: View {
                     Button("Add") {
                         saveExercise()
                     }
-                    .disabled(name.isEmpty)
+                    .disabled(selectedExercise == nil)
                 }
+            }
+            .sheet(isPresented: $showingNewExerciseForm) {
+                ExerciseFormView(
+                    name: "",
+                    selectedMuscles: [],
+                    notes: "",
+                    isPresented: $showingNewExerciseForm,
+                    onSave: { name, muscles, notes in
+                        libraryViewModel.addExercise(name: name, targetMuscles: muscles, notes: notes)
+                        if let newExercise = libraryViewModel.exercises.first(where: { $0.exerciseName == name }) {
+                            selectedExercise = newExercise
+                        }
+                    }
+                )
             }
         }
     }
     
     private func saveExercise() {
-        let context = PersistenceController.shared.container.viewContext
-        let exercise = Exercise(context: context)
+        guard let selectedExercise = selectedExercise else { return }
+        
+        // Create a new exercise instance for this block
+        let exercise = Exercise(context: viewContext)
         exercise.id = UUID()
-        exercise.name = name
+        exercise.name = selectedExercise.exerciseName
+        exercise.targetMuscles = selectedExercise.exerciseTargetMuscles as NSArray
+        exercise.notes = selectedExercise.exerciseNotes
         exercise.repsPerSet = reps
         exercise.weight = weight
-        exercise.notes = notes.isEmpty ? nil : notes
         
         exercises.append(exercise)
         dismiss()
