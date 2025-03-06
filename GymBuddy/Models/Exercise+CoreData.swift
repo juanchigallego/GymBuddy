@@ -16,6 +16,11 @@ extension Exercise {
         set { notes = newValue }
     }
     
+    var exerciseTargetMuscles: [String] {
+        get { targetMuscles as? [String] ?? [] }
+        set { targetMuscles = newValue as NSArray }
+    }
+    
     @nonobjc public class func fetchRequest() -> NSFetchRequest<Exercise> {
         return NSFetchRequest<Exercise>(entityName: "Exercise")
     }

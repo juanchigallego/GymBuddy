@@ -53,6 +53,11 @@ struct ContentView: View {
                     Label("Routines", systemImage: "dumbbell.fill")
                 }
                 
+                ExercisesView(viewContext: context)
+                    .tabItem {
+                        Label("Exercises", systemImage: "figure.strengthtraining.traditional")
+                    }
+                
                 WorkoutHistoryView(viewModel: viewModel)
                     .tabItem {
                         Label("History", systemImage: "clock.fill")
