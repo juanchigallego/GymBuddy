@@ -17,6 +17,7 @@
         <attribute name="targetMuscles" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData" customClassName="NSArray"/>
         <attribute name="weight" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <relationship name="block" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Block" inverseName="exercises" inverseEntity="Block"/>
+        <relationship name="progressHistory" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ExerciseProgress" inverseName="exercise" inverseEntity="ExerciseProgress"/>
     </entity>
     <entity name="Routine" representedClassName="GymBuddy.Routine" syncable="YES">
         <attribute name="day" optional="YES" attributeType="String"/>
@@ -51,5 +52,16 @@
         <attribute name="repsPerSet" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="weight" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <relationship name="block" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CompletedBlock" inverseName="exercises" inverseEntity="CompletedBlock"/>
+        <relationship name="progress" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ExerciseProgress" inverseName="completedExercise" inverseEntity="ExerciseProgress"/>
+    </entity>
+    <entity name="ExerciseProgress" representedClassName="GymBuddy.ExerciseProgress" syncable="YES">
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="exerciseName" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="reps" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="weight" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <relationship name="completedExercise" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CompletedExercise" inverseName="progress" inverseEntity="CompletedExercise"/>
+        <relationship name="exercise" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Exercise" inverseName="progressHistory" inverseEntity="Exercise"/>
     </entity>
 </model>
