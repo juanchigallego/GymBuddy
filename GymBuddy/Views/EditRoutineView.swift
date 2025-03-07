@@ -6,7 +6,6 @@ struct EditRoutineView: View {
     let routine: Routine
     @Environment(\.dismiss) var dismiss
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var editMode = EditMode.active
     
     @State private var day: String
     @State private var muscleGroups: String
@@ -71,13 +70,17 @@ struct EditRoutineView: View {
                             }
                         }
                         .padding(.vertical, 4)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                if let index = blocks.firstIndex(where: { $0.id == block.id }) {
+                                    blocks.remove(at: index)
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
-                    .onDelete { indexSet in
-                        blocks.remove(atOffsets: indexSet)
-                    }
-                    .onMove { from, to in
-                        blocks.move(fromOffsets: from, toOffset: to)
-                    }
+                    .listRowBackground(Color(UIColor.systemGroupedBackground))
                     
                     Button("Add Block") {
                         showingAddBlock = true
@@ -85,7 +88,6 @@ struct EditRoutineView: View {
                 }
             }
             .navigationTitle("Edit Routine")
-            .environment(\.editMode, $editMode)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -98,10 +100,6 @@ struct EditRoutineView: View {
                         saveRoutine()
                     }
                     .disabled(day.isEmpty || blocks.isEmpty)
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    EditButton()
                 }
             }
             .sheet(isPresented: $showingAddBlock) {
@@ -198,9 +196,6 @@ struct EditExercisesView: View {
                 Button("Done") {
                     saveExercises()
                 }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                EditButton()
             }
         }
         .sheet(isPresented: $showingAddExercise) {

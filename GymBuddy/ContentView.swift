@@ -115,61 +115,6 @@ struct RoutineRowView: View {
     }
 }
 
-struct RoutineDetailView: View {
-    let routine: Routine
-    @ObservedObject var viewModel: RoutineViewModel
-    
-    var body: some View {
-        List {
-            Section {
-                Text("Target Muscle Groups: \(routine.muscleGroupsArray.joined(separator: ", "))")
-                if let notes = routine.routineNotes {
-                    Text("Notes: \(notes)")
-                }
-            }
-            
-            ForEach(routine.blockArray, id: \.blockID) { block in
-                Section(header: HStack {
-                    Text(block.blockName)
-                    Spacer()
-                    Button("Edit") {
-                        viewModel.blockToEdit = block
-                        viewModel.isEditingBlock = true
-                    }
-                }) {
-                    ForEach(block.exerciseArray, id: \.exerciseID) { exercise in
-                        ExerciseRowView(exercise: exercise)
-                    }
-                }
-            }
-        }
-        .navigationTitle(routine.routineDay)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Edit") {
-                    viewModel.routineToEdit = routine
-                    viewModel.isEditingRoutine = true
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button("Start Workout") {
-                    viewModel.startWorkout(routine: routine)
-                }
-            }
-        }
-        .sheet(isPresented: $viewModel.isEditingRoutine) {
-            if let routineToEdit = viewModel.routineToEdit {
-                EditRoutineView(viewModel: viewModel, routine: routineToEdit)
-            }
-        }
-        .sheet(isPresented: $viewModel.isEditingBlock) {
-            if let blockToEdit = viewModel.blockToEdit {
-                EditBlockView(viewModel: viewModel, block: blockToEdit)
-            }
-        }
-    }
-}
-
 struct ExerciseRowView: View {
     let exercise: Exercise
     
