@@ -144,4 +144,62 @@ struct ExerciseDetailView: View {
             fetchProgressEntries()
         }
     }
+}
+
+#Preview {
+    let context = PersistenceController.shared.container.viewContext
+    
+    // Create a sample routine first
+    let routine = Routine(context: context)
+    routine.id = UUID()
+    routine.day = "Push Day"
+    routine.targetMuscleGroups = ["Chest", "Shoulders", "Triceps"] as NSArray
+    
+    // Create a block
+    let block = Block(context: context)
+    block.id = UUID()
+    block.name = "Chest"
+    block.sets = 4
+    block.routine = routine
+    
+    // Create a sample exercise
+    let exercise = Exercise(context: context)
+    exercise.id = UUID()
+    exercise.name = "Bench Press"
+    exercise.weight = 100.0
+    exercise.repsPerSet = 8
+    exercise.notes = "Focus on form and controlled descent"
+    exercise.targetMuscles = ["Chest", "Triceps", "Shoulders"] as NSArray
+    exercise.block = block
+    
+    // Create sample progress entries
+    let calendar = Calendar.current
+    let today = Date()
+    let progressions: [(daysAgo: Int, weight: Double)] = [
+        (60, 85.0),  // Starting weight
+        (45, 87.5),  // Small increase
+        (30, 90.0),  // Regular progression
+        (21, 92.5),  // Good progress
+        (14, 95.0),  // Consistent gains
+        (7, 97.5),   // Recent progress
+        (0, 100.0)   // Current weight
+    ]
+    
+    for progression in progressions {
+        let entry = ExerciseProgress(context: context)
+        entry.id = UUID()
+        entry.date = calendar.date(byAdding: .day, value: -progression.daysAgo, to: today)
+        entry.weight = progression.weight
+        entry.reps = 8
+        entry.exerciseName = exercise.name
+        entry.exercise = exercise
+        entry.notes = "Good form, felt strong"
+    }
+    
+    try? context.save()
+    
+    return NavigationStack {
+        ExerciseDetailView(exercise: exercise, viewContext: context)
+            .environment(\.managedObjectContext, context)
+    }
 } 

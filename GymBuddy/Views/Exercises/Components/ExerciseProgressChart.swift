@@ -159,4 +159,46 @@ struct ExerciseProgressChart: View {
         .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
     }
+}
+
+#Preview {
+    let context = PersistenceController.shared.container.viewContext
+    
+    // Create sample progress entries
+    let calendar = Calendar.current
+    let today = Date()
+    var entries: [ExerciseProgress] = []
+    
+    let progressions: [(daysAgo: Int, weight: Double)] = [
+        (60, 85.0),  // Starting weight
+        (45, 87.5),  // Small increase
+        (30, 90.0),  // Regular progression
+        (21, 92.5),  // Good progress
+        (14, 95.0),  // Consistent gains
+        (7, 97.5),   // Recent progress
+        (0, 100.0)   // Current weight
+    ]
+    
+    for progression in progressions {
+        let entry = ExerciseProgress(context: context)
+        entry.id = UUID()
+        entry.date = calendar.date(byAdding: .day, value: -progression.daysAgo, to: today)
+        entry.weight = progression.weight
+        entry.reps = 8
+        entry.exerciseName = "Bench Press"
+        entry.notes = "Good form, felt strong"
+        entries.append(entry)
+    }
+    
+    try? context.save()
+    
+    return VStack {
+        ExerciseProgressChart(progressEntries: entries)
+            .padding()
+        
+        // Empty state preview
+        ExerciseProgressChart(progressEntries: [])
+            .padding()
+    }
+    .background(Color(.systemBackground))
 } 
