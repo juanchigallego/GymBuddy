@@ -200,13 +200,13 @@ struct WorkoutTrackingView: View {
     }
     
     private func completeCurrentBlock() {
-        if let currentBlock = currentBlock {
+        if currentBlock != nil {
             viewModel.completeBlock()
         }
     }
     
     private func skipCurrentBlock() {
-        if let currentBlock = currentBlock {
+        if currentBlock != nil {
             viewModel.completeBlock(skipped: true)
         }
     }

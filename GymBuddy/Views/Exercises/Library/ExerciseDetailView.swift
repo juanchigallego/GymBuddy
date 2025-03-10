@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import Charts
 
 /// A detailed view for displaying and editing exercise information
 struct ExerciseDetailView: View {
@@ -7,6 +8,7 @@ struct ExerciseDetailView: View {
     @State private var showingEditSheet = false
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var routineViewModel: RoutineViewModel
+    @State private var progressEntries: [ExerciseProgress] = []
     
     init(exercise: Exercise, viewContext: NSManagedObjectContext) {
         self.exercise = exercise
@@ -27,6 +29,19 @@ struct ExerciseDetailView: View {
         } catch {
             print("Error fetching blocks: \(error)")
             return []
+        }
+    }
+    
+    private func fetchProgressEntries() {
+        let fetchRequest = NSFetchRequest<ExerciseProgress>(entityName: "ExerciseProgress")
+        fetchRequest.predicate = NSPredicate(format: "exerciseName == %@", exercise.exerciseName)
+        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \ExerciseProgress.date, ascending: true)]
+        
+        do {
+            progressEntries = try viewContext.fetch(fetchRequest)
+        } catch {
+            print("Error fetching progress entries: \(error)")
+            progressEntries = []
         }
     }
     
@@ -63,6 +78,12 @@ struct ExerciseDetailView: View {
                 }
             }
             
+            // Exercise History
+            Section(header: Text("Weight Progression")) {
+                ExerciseProgressChart(progressEntries: progressEntries)
+                    .listRowInsets(EdgeInsets())
+            }
+            
             // Routines containing this exercise
             Section(header: Text("Used in Routines")) {
                 if !routinesUsingExercise.isEmpty {
@@ -83,13 +104,6 @@ struct ExerciseDetailView: View {
                     Text("Not used in any routines")
                         .foregroundColor(.secondary)
                 }
-            }
-            
-            // Exercise History
-            Section(header: Text("Exercise History")) {
-                // TODO: Add chart showing weight progression
-                Text("Coming soon: Weight progression chart")
-                    .foregroundColor(.secondary)
             }
         }
         .navigationTitle(exercise.exerciseName)
@@ -125,6 +139,9 @@ struct ExerciseDetailView: View {
                     }
                 }
             )
+        }
+        .onAppear {
+            fetchProgressEntries()
         }
     }
 } 
