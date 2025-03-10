@@ -101,36 +101,6 @@ struct ContentView: View {
     }
 }
 
-struct RoutineRowView: View {
-    let routine: Routine
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(routine.routineDay)
-                .font(.headline)
-            Text(routine.muscleGroupsArray.joined(separator: ", "))
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-    }
-}
-
-struct ExerciseRowView: View {
-    let exercise: Exercise
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(exercise.exerciseName)
-                .font(.headline)
-            Text("\(exercise.repsPerSet) reps")
-            if exercise.weight > 0 {
-                Text("Weight: \(exercise.weight, specifier: "%.1f")kg")
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
 #Preview {
     let context = PersistenceController.shared.container.viewContext
     let viewModel = RoutineViewModel(context: context)
