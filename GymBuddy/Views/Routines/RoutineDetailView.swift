@@ -34,16 +34,40 @@ struct RoutineDetailView: View {
         }
         .navigationTitle(routine.routineDay)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Edit") {
-                    viewModel.routineToEdit = routine
-                    viewModel.isEditingRoutine = true
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button {
+                        viewModel.toggleFavorite(routine)
+                    } label: {
+                        Label(
+                            routine.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                            systemImage: routine.isFavorite ? "star.fill" : "star"
+                        )
+                    }
+                    
+                    Button {
+                        viewModel.toggleArchived(routine)
+                    } label: {
+                        Label(
+                            routine.isArchived ? "Unarchive" : "Archive",
+                            systemImage: routine.isArchived ? "archivebox.fill" : "archivebox"
+                        )
+                    }
+                    
+                    Button("Edit") {
+                        viewModel.routineToEdit = routine
+                        viewModel.isEditingRoutine = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
+            
             ToolbarItem(placement: .primaryAction) {
                 Button("Start Workout") {
                     viewModel.startWorkout(routine: routine)
                 }
+                .disabled(routine.isArchived)
             }
         }
         .sheet(isPresented: $viewModel.isEditingRoutine) {

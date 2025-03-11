@@ -64,6 +64,10 @@ class RoutineViewModel: ObservableObject {
     
     func fetchRoutines() {
         let request = NSFetchRequest<Routine>(entityName: "Routine")
+        request.sortDescriptors = [
+            NSSortDescriptor(keyPath: \Routine.isFavorite, ascending: false),
+            NSSortDescriptor(keyPath: \Routine.day, ascending: true)
+        ]
         
         do {
             routines = try viewContext.fetch(request)
@@ -452,6 +456,7 @@ class RoutineViewModel: ObservableObject {
     
     func updateCurrentBlock(index: Int) {
         currentBlockIndex = index
+        completedSets = 0  // Reset completed sets when starting a new block
         startNewBlock()
         startBlockTimer()
     }
@@ -583,5 +588,37 @@ class RoutineViewModel: ObservableObject {
         } catch {
             print("Error saving completed workout: \(error)")
         }
+    }
+    
+    func toggleFavorite(_ routine: Routine) {
+        routine.isFavorite.toggle()
+        do {
+            try viewContext.save()
+            fetchRoutines()
+        } catch {
+            print("Error toggling favorite: \(error)")
+        }
+    }
+    
+    func toggleArchived(_ routine: Routine) {
+        routine.isArchived.toggle()
+        do {
+            try viewContext.save()
+            fetchRoutines()
+        } catch {
+            print("Error toggling archived: \(error)")
+        }
+    }
+    
+    var activeRoutines: [Routine] {
+        routines.filter { !$0.isArchived }
+    }
+    
+    var archivedRoutines: [Routine] {
+        routines.filter { $0.isArchived }
+    }
+    
+    var favoriteRoutines: [Routine] {
+        routines.filter { $0.isFavorite && !$0.isArchived }
     }
 } 

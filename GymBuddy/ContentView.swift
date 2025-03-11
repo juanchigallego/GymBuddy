@@ -22,16 +22,42 @@ struct ContentView: View {
             TabView {
                 NavigationStack {
                     List {
-                        ForEach(viewModel.routines) { routine in
-                            NavigationLink {
-                                RoutineDetailView(routine: routine, viewModel: viewModel)
-                            } label: {
-                                RoutineRowView(routine: routine)
+                        if !viewModel.favoriteRoutines.isEmpty {
+                            Section("Favorites") {
+                                ForEach(viewModel.favoriteRoutines) { routine in
+                                    NavigationLink {
+                                        RoutineDetailView(routine: routine, viewModel: viewModel)
+                                    } label: {
+                                        RoutineRowView(routine: routine)
+                                    }
+                                }
                             }
                         }
-                        .onDelete { indexSet in
-                            for index in indexSet {
-                                viewModel.deleteRoutine(viewModel.routines[index])
+                        
+                        Section("Active Routines") {
+                            ForEach(viewModel.activeRoutines.filter { !$0.isFavorite }) { routine in
+                                NavigationLink {
+                                    RoutineDetailView(routine: routine, viewModel: viewModel)
+                                } label: {
+                                    RoutineRowView(routine: routine)
+                                }
+                            }
+                            .onDelete { indexSet in
+                                for index in indexSet {
+                                    viewModel.deleteRoutine(viewModel.activeRoutines[index])
+                                }
+                            }
+                        }
+                        
+                        if !viewModel.archivedRoutines.isEmpty {
+                            Section("Archived") {
+                                ForEach(viewModel.archivedRoutines) { routine in
+                                    NavigationLink {
+                                        RoutineDetailView(routine: routine, viewModel: viewModel)
+                                    } label: {
+                                        RoutineRowView(routine: routine)
+                                    }
+                                }
                             }
                         }
                     }

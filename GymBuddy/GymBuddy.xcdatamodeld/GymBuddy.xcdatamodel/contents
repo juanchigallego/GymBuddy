@@ -24,6 +24,8 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="notes" optional="YES" attributeType="String"/>
         <attribute name="targetMuscleGroups" optional="YES" attributeType="Transformable" customClassName="NSArray"/>
+        <attribute name="isFavorite" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="isArchived" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <relationship name="blocks" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Block" inverseName="routine" inverseEntity="Block"/>
     </entity>
     <entity name="CompletedWorkout" representedClassName="GymBuddy.CompletedWorkout" syncable="YES">
