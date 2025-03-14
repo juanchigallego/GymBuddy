@@ -127,3 +127,41 @@ struct EditRoutineView: View {
         dismiss()
     }
 }
+
+#Preview {
+    let context = PersistenceController.shared.container.viewContext
+    
+    // Create a sample routine
+    let routine = Routine(context: context)
+    routine.id = UUID()
+    routine.day = "Push Day"
+    routine.muscleGroupsArray = ["Chest", "Shoulders", "Triceps"]
+    routine.notes = "Focus on form"
+    
+    // Create a sample block
+    let block = Block(context: context)
+    block.id = UUID()
+    block.name = "Chest Press"
+    block.sets = 3
+    block.restSeconds = 90
+    block.routine = routine
+    
+    // Create a sample exercise
+    let exercise = Exercise(context: context)
+    exercise.id = UUID()
+    exercise.name = "Bench Press"
+    exercise.repsPerSet = 10
+    exercise.weight = 60.0
+    exercise.block = block
+    
+    // Save context
+    try? context.save()
+    
+    // Create view model
+    let viewModel = RoutineViewModel(context: context)
+    
+    return NavigationStack {
+        EditRoutineView(viewModel: viewModel, routine: routine)
+            .environment(\.managedObjectContext, context)
+    }
+}

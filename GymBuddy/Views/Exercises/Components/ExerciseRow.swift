@@ -34,4 +34,23 @@ struct ExerciseRow: View {
         }
         .padding(.vertical, 8)
     }
-} 
+}
+
+#Preview {
+    let context = PersistenceController.shared.container.viewContext
+    
+    let exercise = Exercise(context: context)
+    exercise.exerciseName = "Bench Press"
+    exercise.exerciseTargetMuscles = ["Chest", "Biceps"]
+    exercise.notes = "Focus on form."
+    exercise.repsPerSet = 15
+    exercise.weight = 80.0
+    
+    // Save context
+    try? context.save()
+    
+    return NavigationStack {
+        ExerciseRow(exercise: exercise)
+            .environment(\.managedObjectContext, context)
+    }
+}

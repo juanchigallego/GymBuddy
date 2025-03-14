@@ -27,29 +27,41 @@ struct EditBlockView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    TextField("Block Name (e.g. Chest)", text: $blockName)
-                    Stepper("Number of Sets: \(numberOfSets)", value: $numberOfSets, in: 1...10)
-                }
-                
-                Section("Rest Timer") {
-                    Stepper("Rest Time: \(restSeconds) seconds", value: $restSeconds, in: 0...300, step: 30)
+                Section("Details") {
+                    TextField("Name", text: $blockName)
+                    Stepper("Sets: \(numberOfSets)", value: $numberOfSets, in: 1...10)
+                    Stepper("Rest: \(restSeconds) seconds", value: $restSeconds, in: 0...300, step: 30)
                         .foregroundColor(restSeconds > 0 ? .primary : .secondary)
                 }
                 
                 Section("Exercises") {
                     ForEach(exercises, id: \.id) { exercise in
-                        VStack(alignment: .leading) {
+                        HStack(alignment: .top) {
                             Text(exercise.exerciseName)
-                                .font(.headline)
-                            Text("\(exercise.repsPerSet) reps @ \(String(format: "%.1f", exercise.weight))kg")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            if !exercise.exerciseTargetMuscles.isEmpty {
-                                Text(exercise.exerciseTargetMuscles.joined(separator: ", "))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                .font(.body)
+                            Spacer()
+                            Button {
+                                
+                            } label: {
+                                HStack(alignment: .center, spacing: 4) {
+                                    Image(systemName: "repeat")
+                                        .foregroundStyle(Color(.secondaryLabel))
+                                        .font(.system(size: 12))
+                                    Text("\(exercise.repsPerSet) reps")
+                                }
                             }
+                            .buttonStyle(.label)
+                            Button {
+                                
+                            } label: {
+                                HStack(alignment: .center, spacing: 4) {
+                                    Image(systemName: "scalemass")
+                                        .foregroundStyle(Color(.secondaryLabel))
+                                        .font(.system(size: 12))
+                                    Text("\(String(format: "%.1f", exercise.weight))kg")
+                                }
+                            }
+                            .buttonStyle(.label)
                         }
                     }
                     .onDelete { indexSet in
@@ -58,40 +70,32 @@ struct EditBlockView: View {
                     .onMove { from, to in
                         exercises.move(fromOffsets: from, toOffset: to)
                     }
-                    
-                    Button("Add Exercise") {
-                        showingAddExercise = true
-                    }
                 }
                 
-                if !exercises.isEmpty {
-                    Section("Summary") {
-                        Text("This block consists of \(numberOfSets) sets of:")
-                            .font(.subheadline)
-                        ForEach(exercises, id: \.id) { exercise in
-                            Text("• \(exercise.exerciseName): \(exercise.repsPerSet) reps @ \(String(format: "%.1f", exercise.weight))kg")
-                                .font(.subheadline)
-                        }
-                    }
+                Button {
+                    showingAddExercise = true
+                } label: {
+                    Text("Add Exercise")
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
             .navigationTitle("Edit Block")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button() {
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 16))
                     }
+                    .buttonStyle(.circle)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         saveBlock()
                     }
                     .disabled(blockName.isEmpty || exercises.isEmpty)
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    EditButton()
                 }
             }
             .sheet(isPresented: $showingAddExercise) {
