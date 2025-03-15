@@ -12,6 +12,10 @@ struct EditBlockView: View {
     @State private var numberOfSets: Int16
     @State private var showingAddExercise = false
     @State private var restSeconds: Int16
+    @State private var showingRepsEditor = false
+    @State private var showingWeightEditor = false
+    @State private var selectedExercise: Exercise?
+    @State private var selectedProperty: ExerciseProperty = .reps
     
     init(viewModel: RoutineViewModel, block: Block) {
         self.viewModel = viewModel
@@ -41,7 +45,9 @@ struct EditBlockView: View {
                                 .font(.body)
                             Spacer()
                             Button {
-                                
+                                selectedExercise = exercise
+                                selectedProperty = .reps
+                                showingRepsEditor = true
                             } label: {
                                 HStack(alignment: .center, spacing: 4) {
                                     Image(systemName: "repeat")
@@ -52,7 +58,9 @@ struct EditBlockView: View {
                             }
                             .buttonStyle(.label)
                             Button {
-                                
+                                selectedExercise = exercise
+                                selectedProperty = .weight
+                                showingWeightEditor = true
                             } label: {
                                 HStack(alignment: .center, spacing: 4) {
                                     Image(systemName: "scalemass")
@@ -100,6 +108,16 @@ struct EditBlockView: View {
             }
             .sheet(isPresented: $showingAddExercise) {
                 AddExerciseView(exercises: $exercises, viewContext: viewContext)
+            }
+            .sheet(isPresented: $showingRepsEditor) {
+                if let exercise = selectedExercise {
+                    ExercisePropertyEditor(exercise: exercise, property: .reps)
+                }
+            }
+            .sheet(isPresented: $showingWeightEditor) {
+                if let exercise = selectedExercise {
+                    ExercisePropertyEditor(exercise: exercise, property: .weight)
+                }
             }
         }
     }

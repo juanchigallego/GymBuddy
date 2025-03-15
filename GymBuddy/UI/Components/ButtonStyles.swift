@@ -37,9 +37,27 @@ public struct LabelButtonStyle: ButtonStyle {
     }
 }
 
+public struct PrimaryPillButtonStyle: ButtonStyle {
+    public init() {}
+    
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .foregroundColor(.blue)
+            .background(
+                Capsule()
+                    .fill(Color.accentColor.opacity(0.20))
+            )
+    }
+}
+
 public extension ButtonStyle where Self == CircleButtonStyle {
     static var circle: CircleButtonStyle { CircleButtonStyle() }
 }
 public extension ButtonStyle where Self == LabelButtonStyle {
     static var label: LabelButtonStyle { LabelButtonStyle() }
+}
+public extension ButtonStyle where Self == PrimaryPillButtonStyle {
+    static var primaryPill: PrimaryPillButtonStyle { PrimaryPillButtonStyle() }
 }

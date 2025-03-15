@@ -140,14 +140,8 @@ struct RoutineDetailView: View {
                     viewModel.startWorkout(routine: routine)
                 } label: {
                     Label("Start Workout", systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .foregroundColor(.blue)
-                        .background(
-                            Capsule()
-                                .fill(Color.accentColor.opacity(0.20))
-                        )
                 }
+                .buttonStyle(.primaryPill)
                 .disabled(routine.isArchived)
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
