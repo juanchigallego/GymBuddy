@@ -145,10 +145,10 @@ struct RoutineDetailView: View {
                 .disabled(routine.isArchived)
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
+                .padding(.bottom)
                 .background(Material.ultraThin)
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(routine.routineDay)
         .toolbar {
             
