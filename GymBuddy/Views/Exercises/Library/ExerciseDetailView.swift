@@ -7,12 +7,14 @@ struct ExerciseDetailView: View {
     let exercise: Exercise
     @State private var showingEditSheet = false
     @Environment(\.managedObjectContext) private var viewContext
-    @StateObject private var routineViewModel: RoutineViewModel
+    @ObservedObject var routineViewModel: RoutineViewModel
+    @ObservedObject var progressViewModel: ProgressViewModel
     @State private var progressEntries: [ExerciseProgress] = []
     
-    init(exercise: Exercise, viewContext: NSManagedObjectContext) {
+    init(exercise: Exercise, viewContext: NSManagedObjectContext, progressViewModel: ProgressViewModel) {
         self.exercise = exercise
-        self._routineViewModel = StateObject(wrappedValue: RoutineViewModel(context: viewContext))
+        self.progressViewModel = progressViewModel
+        self._routineViewModel = ObservedObject(wrappedValue: RoutineViewModel(context: viewContext))
     }
     
     var routinesUsingExercise: [(routine: Routine, block: Block)] {
@@ -33,16 +35,7 @@ struct ExerciseDetailView: View {
     }
     
     private func fetchProgressEntries() {
-        let fetchRequest = NSFetchRequest<ExerciseProgress>(entityName: "ExerciseProgress")
-        fetchRequest.predicate = NSPredicate(format: "exerciseName == %@", exercise.exerciseName)
-        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \ExerciseProgress.date, ascending: true)]
-        
-        do {
-            progressEntries = try viewContext.fetch(fetchRequest)
-        } catch {
-            print("Error fetching progress entries: \(error)")
-            progressEntries = []
-        }
+        progressEntries = progressViewModel.getProgressEntriesForExercise(exerciseName: exercise.exerciseName)
     }
     
     var body: some View {
@@ -89,7 +82,11 @@ struct ExerciseDetailView: View {
                 if !routinesUsingExercise.isEmpty {
                     ForEach(routinesUsingExercise, id: \.routine.id) { routineInfo in
                         NavigationLink {
-                            RoutineDetailView(routine: routineInfo.routine, viewModel: routineViewModel)
+                            RoutineDetailView(
+                                routine: routineInfo.routine, 
+                                routineViewModel: routineViewModel,
+                                workoutViewModel: WorkoutViewModel(context: viewContext)
+                            )
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(routineInfo.routine.routineDay)
@@ -198,8 +195,15 @@ struct ExerciseDetailView: View {
     
     try? context.save()
     
+    // Create view models
+    let progressViewModel = ProgressViewModel(context: context)
+    
     return NavigationStack {
-        ExerciseDetailView(exercise: exercise, viewContext: context)
-            .environment(\.managedObjectContext, context)
+        ExerciseDetailView(
+            exercise: exercise, 
+            viewContext: context,
+            progressViewModel: progressViewModel
+        )
+        .environment(\.managedObjectContext, context)
     }
 } 

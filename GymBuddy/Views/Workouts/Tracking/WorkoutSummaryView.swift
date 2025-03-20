@@ -2,7 +2,7 @@ import SwiftUI
 
 struct WorkoutSummaryView: View {
     let routine: Routine
-    @ObservedObject var viewModel: RoutineViewModel
+    @ObservedObject var viewModel: WorkoutViewModel
     @Environment(\.dismiss) var dismiss
     
     private func formatTime(_ timeInterval: TimeInterval) -> String {
@@ -108,7 +108,7 @@ struct WorkoutSummaryView: View {
 
 #Preview {
     let context = PersistenceController.shared.container.viewContext
-    let viewModel = RoutineViewModel(context: context)
+    let workoutViewModel = WorkoutViewModel(context: context)
     
     // Create a sample routine
     let routine = Routine(context: context)
@@ -132,9 +132,9 @@ struct WorkoutSummaryView: View {
     exercise.block = block
     
     // Set up timing data
-    viewModel.blockCompletionTimes[block.id!] = 600 // 10 minutes
-    viewModel.totalWorkoutTime = 3600 // 1 hour
+    workoutViewModel.blockCompletionTimes[block.id!] = 600 // 10 minutes
+    workoutViewModel.totalWorkoutTime = 3600 // 1 hour
     
-    return WorkoutSummaryView(routine: routine, viewModel: viewModel)
+    return WorkoutSummaryView(routine: routine, viewModel: workoutViewModel)
         .environment(\.managedObjectContext, context)
 } 

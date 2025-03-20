@@ -5,12 +5,14 @@ import CoreData
 struct ExercisesView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var viewModel: ExerciseLibraryViewModel
+    @ObservedObject var progressViewModel: ProgressViewModel
     @State private var showingAddExercise = false
     @State private var exerciseToDelete: Exercise?
     @State private var showingDeleteConfirmation = false
     
-    init(viewContext: NSManagedObjectContext) {
+    init(viewContext: NSManagedObjectContext, progressViewModel: ProgressViewModel) {
         _viewModel = StateObject(wrappedValue: ExerciseLibraryViewModel(viewContext: viewContext))
+        self.progressViewModel = progressViewModel
     }
     
     var body: some View {
@@ -82,7 +84,11 @@ struct ExercisesView: View {
                     List {
                         ForEach(viewModel.filteredExercises) { exercise in
                             NavigationLink {
-                                ExerciseDetailView(exercise: exercise, viewContext: viewContext)
+                                ExerciseDetailView(
+                                    exercise: exercise, 
+                                    viewContext: viewContext,
+                                    progressViewModel: progressViewModel
+                                )
                             } label: {
                                 ExerciseRow(exercise: exercise)
                             }
@@ -101,7 +107,11 @@ struct ExercisesView: View {
             }
             .navigationTitle("Exercise Library")
             .navigationDestination(for: Exercise.self) { exercise in
-                ExerciseDetailView(exercise: exercise, viewContext: viewContext)
+                ExerciseDetailView(
+                    exercise: exercise, 
+                    viewContext: viewContext,
+                    progressViewModel: progressViewModel
+                )
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

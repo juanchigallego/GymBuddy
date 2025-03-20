@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WorkoutHistoryView: View {
-    @ObservedObject var viewModel: RoutineViewModel
+    @ObservedObject var viewModel: WorkoutViewModel
     @State private var selectedWorkout: CompletedWorkout?
     
     var body: some View {

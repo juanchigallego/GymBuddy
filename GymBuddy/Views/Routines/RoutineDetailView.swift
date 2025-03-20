@@ -10,7 +10,8 @@ import CoreData
 
 struct RoutineDetailView: View {
     let routine: Routine
-    @ObservedObject var viewModel: RoutineViewModel
+    @ObservedObject var routineViewModel: RoutineViewModel
+    @ObservedObject var workoutViewModel: WorkoutViewModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingActionPopover = false
     @State private var actionAnchor: CGPoint = .zero
@@ -29,7 +30,7 @@ struct RoutineDetailView: View {
                         
                         // Favorite button
                         Button {
-                            viewModel.toggleFavorite(routine)
+                            routineViewModel.toggleFavorite(routine)
                         } label: {
                             Image(systemName: routine.isFavorite ? "star.fill" : "star")
                                 .foregroundColor(.secondary)
@@ -50,7 +51,7 @@ struct RoutineDetailView: View {
                             VStack(spacing: 0) {
                                 // Archive/Unarchive button
                                 Button {
-                                    viewModel.toggleArchived(routine)
+                                    routineViewModel.toggleArchived(routine)
                                     showingActionPopover = false
                                 } label: {
                                     HStack {
@@ -69,8 +70,8 @@ struct RoutineDetailView: View {
                                 
                                 // Edit button
                                 Button {
-                                    viewModel.routineToEdit = routine
-                                    viewModel.isEditingRoutine = true
+                                    routineViewModel.routineToEdit = routine
+                                    routineViewModel.isEditingRoutine = true
                                     showingActionPopover = false
                                 } label: {
                                     HStack {
@@ -113,7 +114,7 @@ struct RoutineDetailView: View {
                     // Blocks section
                     VStack(spacing: 8) {
                         ForEach(routine.blockArray, id: \.blockID) { block in
-                            BlockCard(block: block, viewModel: viewModel)
+                            BlockCard(block: block, viewModel: routineViewModel)
                         }
                         Button {
                             
@@ -137,7 +138,7 @@ struct RoutineDetailView: View {
                 Spacer()
                 
                 Button {
-                    viewModel.startWorkout(routine: routine)
+                    workoutViewModel.startWorkout(routine: routine)
                 } label: {
                     Label("Start Workout", systemImage: "play.fill")
                 }
@@ -153,9 +154,9 @@ struct RoutineDetailView: View {
         .toolbar {
             
         }
-        .sheet(isPresented: $viewModel.isEditingRoutine) {
-            if let routineToEdit = viewModel.routineToEdit {
-                EditRoutineView(viewModel: viewModel, routine: routineToEdit)
+        .sheet(isPresented: $routineViewModel.isEditingRoutine) {
+            if let routineToEdit = routineViewModel.routineToEdit {
+                EditRoutineView(viewModel: routineViewModel, routine: routineToEdit)
             }
         }
     }
@@ -219,7 +220,7 @@ struct RoutineDetailView: View {
     let viewModel = RoutineViewModel(context: context)
     
     return NavigationStack {
-        RoutineDetailView(routine: routine, viewModel: viewModel)
+        RoutineDetailView(routine: routine, routineViewModel: viewModel, workoutViewModel: WorkoutViewModel(context: context))
             .environment(\.managedObjectContext, context)
     }
 }

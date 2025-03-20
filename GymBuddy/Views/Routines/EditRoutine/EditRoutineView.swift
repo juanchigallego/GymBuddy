@@ -121,7 +121,6 @@ struct EditRoutineView: View {
             routine,
             day: day,
             muscleGroups: muscleGroupsArray,
-            blocks: blocks,
             notes: notes.isEmpty ? nil : notes
         )
         dismiss()

@@ -2,14 +2,14 @@ import SwiftUI
 
 struct MiniWorkoutTrackerView: View {
     let routine: Routine
-    @ObservedObject var viewModel: RoutineViewModel
+    @ObservedObject var workoutViewModel: WorkoutViewModel
     @State private var isResting = false
     @State private var timeRemaining: Int16 = 0
     @State private var restTimer: Timer?
     
     private func formatBlockTime() -> String {
-        let minutes = viewModel.blockTimeElapsed / 60
-        let seconds = viewModel.blockTimeElapsed % 60
+        let minutes = workoutViewModel.blockTimeElapsed / 60
+        let seconds = workoutViewModel.blockTimeElapsed % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
     
@@ -20,16 +20,16 @@ struct MiniWorkoutTrackerView: View {
     }
     
     private var isLastBlock: Bool {
-        viewModel.currentBlockIndex == routine.blockArray.count - 1
+        workoutViewModel.currentBlockIndex == routine.blockArray.count - 1
     }
     
     private func moveToNextBlock() {
         if !isLastBlock {
-            viewModel.updateCurrentBlock(index: viewModel.currentBlockIndex + 1)
+            workoutViewModel.updateCurrentBlock(index: workoutViewModel.currentBlockIndex + 1)
             isResting = false
             restTimer?.invalidate()
         } else {
-            viewModel.endWorkout()
+            workoutViewModel.endWorkout()
         }
     }
     
@@ -50,7 +50,7 @@ struct MiniWorkoutTrackerView: View {
         Button(action: {
             if !isResting {
                 withAnimation(.spring()) {
-                    viewModel.resumeWorkout()
+                    workoutViewModel.resumeWorkout()
                 }
             }
         }) {
@@ -69,7 +69,7 @@ struct MiniWorkoutTrackerView: View {
                         
                         // Block details
                         VStack(alignment: .leading, spacing: 2) {
-                            if let currentBlock = routine.blockArray[safe: viewModel.currentBlockIndex] {
+                            if let currentBlock = workoutViewModel.currentBlock {
                                 if isResting {
                                     Text("Rest Time")
                                         .font(.subheadline)
@@ -79,7 +79,8 @@ struct MiniWorkoutTrackerView: View {
                                         Label(formatRestTime(), systemImage: "timer")
                                             .foregroundColor(.orange)
                                         
-                                        if let nextBlock = routine.blockArray[safe: viewModel.currentBlockIndex + 1] {
+                                        if let nextBlockIndex = routine.blockArray.firstIndex(where: { $0.blockID == currentBlock.blockID }),
+                                           let nextBlock = routine.blockArray[safe: nextBlockIndex + 1] {
                                             Text("Next: \(nextBlock.blockName)")
                                                 .foregroundColor(.secondary)
                                         }
@@ -92,7 +93,7 @@ struct MiniWorkoutTrackerView: View {
                                     
                                     HStack(spacing: 12) {
                                         Label(formatBlockTime(), systemImage: "clock")
-                                        Label("\(viewModel.completedSets)/\(currentBlock.sets) sets", systemImage: "number")
+                                        Label("\(workoutViewModel.completedSets)/\(currentBlock.sets) sets", systemImage: "number")
                                     }
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -114,9 +115,9 @@ struct MiniWorkoutTrackerView: View {
                         }
                     } else {
                         Button(action: {
-                            if let currentBlock = routine.blockArray[safe: viewModel.currentBlockIndex] {
-                                viewModel.logSet()
-                                if viewModel.completedSets == currentBlock.sets {
+                            if let currentBlock = workoutViewModel.currentBlock {
+                                workoutViewModel.logSet()
+                                if workoutViewModel.completedSets == currentBlock.sets {
                                     if !isLastBlock && currentBlock.restSeconds > 0 {
                                         startRestTimer(seconds: currentBlock.restSeconds)
                                     } else {

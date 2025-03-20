@@ -182,7 +182,6 @@ struct EditBlockView: View {
         viewModel.updateBlock(
             block, 
             name: blockName, 
-            exercises: exerciseViewModels.map { $0.exercise }, 
             sets: numberOfSets, 
             restSeconds: restSeconds
         )

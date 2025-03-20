@@ -25,4 +25,30 @@ struct PersistenceController {
         
         container.viewContext.automaticallyMergesChangesFromParent = true
     }
+    
+    /// Clears all data from the Core Data store
+    func resetAllData() {
+        let entities = container.managedObjectModel.entities
+        let context = container.viewContext
+        
+        // Clear each entity type
+        entities.compactMap({ $0.name }).forEach { entityName in
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+            let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+            
+            do {
+                try container.persistentStoreCoordinator.execute(batchDeleteRequest, with: context)
+            } catch {
+                print("Error clearing \(entityName) data: \(error)")
+            }
+        }
+        
+        // Save changes
+        do {
+            try context.save()
+        } catch {
+            let nsError = error as NSError
+            print("Error saving after reset: \(nsError), \(nsError.userInfo)")
+        }
+    }
 } 
